@@ -12,12 +12,12 @@ How to run Lanhai ros node (Serial Port Version)
 2) or Run : sudo chmod 666 /dev/ttyUSB0 # make usb serial port readable
 
 ## if your lidar model is LDS-50C-2 :
-* rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=true _output_cloud:=true _with_resample:=true _resample_res:=0.5 _unit_is_mm:=true _with_confidence:=true
+* rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=true _output_cloud:=true _with_resample:=true _resample_res:=0.5 _unit_is_mm:=true _with_confidence:=true
 * or use roslaunch src/bluesea/launch/LDS-50C-2.launch
     
 ## if your lidar model is LDS-15BDM or LDS-25BDM:
-* rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=true _output_cloud:=true _unit_is_mm:=false _with_confidence:=true _raw_bytes:=2
-* or use roslaunch src/bluesea/launch/LDS-15BDM.launch    
+* rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=true _output_cloud:=true _unit_is_mm:=false _with_confidence:=true _raw_bytes:=2
+* or use roslaunch src/bluesea2/launch/LDS-15BDM.launch    
 
 3) optional : rostopic hz /scan
 4) optional : rosrun rviz rviz # 
@@ -30,7 +30,7 @@ How to start/stop LiDAR detection
 How to run Lanhai ros node (UDP Network Version)
 =====================================================================
 1) sudo ifconfig eth0:1 192.168.158.200 # add sub net
-2) rosrun bluesea bluesea_node _frame_id:=map _type:=udp _dev_ip:=192.168.158.91 _firmware_version:=2
+2) rosrun bluesea2 bluesea2_node _frame_id:=map _type:=udp _dev_ip:=192.168.158.91 _firmware_version:=2
 3) optional : rostopic hz /scan
 4) optional : rosrun rviz rviz # 
 
