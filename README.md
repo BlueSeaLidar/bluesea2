@@ -12,12 +12,12 @@ How to run Lanhai ros node (Serial Port Version)
 2) or Run : sudo chmod 666 /dev/ttyUSB0 # make usb serial port readable
 
 ## if your lidar model is LDS-50C-2 :
-* rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=1 _output_cloud:=0 _mirror:=1 _from_zero:=1 _with_resample:=true _resample_res:=0.5 _unit_is_mm:=1 _with_confidence:=1
+* rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=true _output_cloud:=true _with_resample:=true _resample_res:=0.5 _unit_is_mm:=true _with_confidence:=true
 * or use roslaunch src/bluesea/launch/LDS-50C-2.launch
     
-## if your lidar model is LDS-25C or LDS-50C:
-* rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=1 _output_cloud:=1 _mirror:=1 _from_zero:=1 _angle_patch:=1 _unit_is_mm:=0 _with_confidence:=1
-* or use roslaunch src/bluesea/launch/LDS-25C.launch    
+## if your lidar model is LDS-15BDM or LDS-25BDM:
+* rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=true _output_cloud:=true _unit_is_mm:=false _with_confidence:=true _raw_bytes:=2
+* or use roslaunch src/bluesea/launch/LDS-15BDM.launch    
 
 3) optional : rostopic hz /scan
 4) optional : rosrun rviz rviz # 
@@ -50,14 +50,14 @@ Parameters
 * int udp_port, tcp_port; 
 
 // for intput data format
-* int unit_is_mm; //  0 : unit of raw data distance is CM, 1: MM
-* int with_confidence; // 1: raw data with intensity, 0: no intensity
-* int with_checksum; // 1 : enable packet checksum
+* bool unit_is_mm; //  0 : unit of raw data distance is CM, 1: MM
+* bool with_confidence; // 1: raw data with intensity, 0: no intensity
+* bool with_checksum; // 1 : enable packet checksum
 
 // output data type
-* int output_scan; // 1: enable output angle+distance mode, 0: disable
-* int output_cloud; // 1: enable output xyz format data, 0 : disable
-* int output_360; // 1: collect multiple RawData packets (360 degree), then publish
+* bool output_scan; // 1: enable output angle+distance mode, 0: disable
+* bool output_cloud; // 1: enable output xyz format data, 0 : disable
+* bool output_360; // 1: collect multiple RawData packets (360 degree), then publish
 				// 0: publish every RawData (36 degree)
 * std::string frame_id;	// frame information, could be used for rviz
 
@@ -67,8 +67,6 @@ Parameters
 
 
 // output data format
-* int mirror; // 0: clockwise, 1: counterclockwise
-* int from_zero; // 1: angle range 0 - 360, 0: angle range -180 - +180
 * int normal_size; // abnormal packet (points number < normal_size) will be droped
 
 // angle filter
@@ -76,6 +74,7 @@ Parameters
 * double min_angle; // angle filter's low threshold, default value: -pi
 * double max_angle; // angle filters' up threashold, default value: pi
 
+* double max_dist;
 
 Dynamic Reconfigure Parameters
 =====================================================================
