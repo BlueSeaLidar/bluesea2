@@ -1,0 +1,25 @@
+<launch>
+ <group ns="lidar1">
+  <node name="lidar01" pkg="bluesea" type="bluesea_node" output="screen" >
+    <param name="type" value="uart" />
+    <param name="port" value="/dev/ttyUSB0" />
+    <param name="baud_rate" value="-1" />
+    <rosparam param="rate_list">[500000, 1000000 ]</rosparam>
+    <param name="raw_bytes" value="3"/>
+    <param name="frame_id" value="map" />
+    <param name="output_360" value="true" />
+    <param name="output_scan" value="true" />
+    <param name="output_cloud" value="true"/>
+    <param name="with_angle_filter" value="0"/>
+    <param name="min_angle" value="-2.2"/>
+    <param name="max_angle" value="2.2"/>
+    <param name="hard_resample" value="true"/>
+    <param name="soft_resample" value="false"/>
+    <param name="resample_res" value="0.400"/>
+    <param name="unit_is_mm" value="true"/>
+    <param name="with_confidence" value="true"/>
+    <param name="with_checksum" value="true"/>
+  </node>
+ </group>
+</launch>
+

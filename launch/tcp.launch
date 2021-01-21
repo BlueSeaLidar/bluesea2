@@ -1,0 +1,25 @@
+<launch>
+ <group ns="lidar1">
+  <node name="lidar01" pkg="bluesea" type="bluesea_node" output="screen" >
+    <param name="type" value="tcp" />
+    <param name="dev_ip" value="192.168.0.220" />
+    <param name="tcp_port" value="12000" />
+    <param name="frame_id" value="map" />
+    <param name="baud_rate" value="-1" />
+    <param name="output_360" value="1" />
+    <param name="output_scan" value="1" />
+    <param name="output_cloud" value="0"/>
+    <param name="with_angle_filter" value="0"/>
+    <param name="min_angle" value="-2.2"/>
+    <param name="max_angle" value="2.2"/>
+    <param name="mirror" value="1"/>
+    <param name="from_zero" value="1"/>
+    <param name="with_resample" value="true"/>
+    <param name="resample_res" value="0.4"/>
+    <param name="unit_is_mm" value="1"/>
+    <param name="with_confidence" value="1"/>
+    <param name="with_checksum" value="1"/>
+  </node>
+ </group>
+</launch>
+
