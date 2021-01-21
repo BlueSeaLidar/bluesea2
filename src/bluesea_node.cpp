@@ -2,11 +2,11 @@
 /*********************************************************************
  * Lanhai ROS driver
  * serial port version  LDS-25: 
- rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=1 _output_cloud:=0 _unit_is_mm:=0 _with_confidence:=0
+ rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=1 _output_cloud:=0 _unit_is_mm:=0 _with_confidence:=0
  * serial port version  LDS-50: 
- rosrun bluesea bluesea_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=1 _output_cloud:=0 _unit_is_mm:=1 _with_confidence:=1
+ rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=1 _output_cloud:=0 _unit_is_mm:=1 _with_confidence:=1
  * UDP network version like this:
- rosrun bluesea bluesea_node _frame_id:=map _type:=udp _dev_ip:=192.168.158.91 _firmware_version:=2 _output_scan:=1 _output_cloud:=1
+ rosrun bluesea2 bluesea2_node _frame_id:=map _type:=udp _dev_ip:=192.168.158.91 _firmware_version:=2 _output_scan:=1 _output_cloud:=1
  *********************************************************************/
 
 #include <ros/ros.h>
@@ -16,7 +16,7 @@
 #include <std_srvs/Empty.h>
 
 #include <dynamic_reconfigure/server.h>
-#include <bluesea/DynParamsConfig.h>
+#include <bluesea2/DynParamsConfig.h>
 
 #include <pthread.h>
 
@@ -343,7 +343,7 @@ void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::stri
 }
 
 
-void setup_params(bluesea::DynParamsConfig &config, uint32_t level) 
+void setup_params(bluesea2::DynParamsConfig &config, uint32_t level) 
 {
 	ROS_INFO("Change RPM to [%d]", config.rpm);
 
@@ -377,7 +377,7 @@ bool start_motor(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "bluesea_laser_publisher");
+	ros::init(argc, argv, "bluesea2_laser_publisher");
        	ros::NodeHandle n;
        	ros::NodeHandle priv_nh("~");
 	
@@ -477,7 +477,7 @@ int main(int argc, char **argv)
 	ros::ServiceServer stop_srv = n.advertiseService("stop_motor", stop_motor);
        	ros::ServiceServer start_srv = n.advertiseService("start_motor", start_motor);
 
-	dynamic_reconfigure::Server<bluesea::DynParamsConfig> server;
+	dynamic_reconfigure::Server<bluesea2::DynParamsConfig> server;
        	server.setCallback( boost::bind(&setup_params, _1, _2) );
 
 
@@ -545,6 +545,7 @@ int main(int argc, char **argv)
 
        	return 0;
 }
+
 
 
 
