@@ -14,8 +14,10 @@ HReader StartUartReader(const char* port, int baudrate, int* rate_list, HParser,
 bool SendUartCmd(HReader, int len, char*);
 
 
-HReader StartUDPReader(const char* port, int baudrate, HParser, HPublish);
-bool SendUDPCmd(HReader, int len, char*);
+HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port, 
+		const char* group_ip, unsigned short listen_port, 
+		HParser hParser, HPublish hPub);
 
+bool SendUdpCmd(HReader hr, int len, char* cmd);
 
 #endif

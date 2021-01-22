@@ -39,6 +39,10 @@ bool SendCmd(int len, char* cmd)
 	{
 		return SendUartCmd(g_reader, len, cmd);
 	}
+	else if (g_type == "udp") 
+	{
+		SendUdpCmd(g_reader, len, cmd);
+	}
 	else if (g_type == "tcp")
 	{
 #if 0
@@ -51,12 +55,7 @@ bool SendCmd(int len, char* cmd)
 		return true;
 #endif
 	}
-	else if (g_type == "udp") 
-	{
-		//return SendUDPCmd(g_reader, len, cmd);
-	
-	}
-       	return false;
+	return false;
 }
 
 
@@ -156,13 +155,11 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData** fan
 
 	pthread_mutex_unlock(&hub->mtx);
 
-#if 0
 	if (with_resample)// && resample_res > 0.05)
        	{
 	       	int NN = fans[0]->span/(10*resample_res);
 	       	if (NN < fans[0]->N) resample(fans[0], NN);
        	}
-#endif
 
 	return got;
 }
@@ -208,13 +205,15 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 		       	total += fans[i+1]->span;
 		}
 
-
 		if (!circle || total != 3600) {
 			printf("%d drop %d fans\n", total, cnt);
 			// clean imcomplent datas
 			for (int i=0; i<cnt; i++) delete fans[i];
 			cnt = 0;
 		}
+	}
+	if (cnt > 0)
+	{
 		qsort(fans, cnt, sizeof(RawData*), angle_cmp);
 
 		if (with_resample)
@@ -232,6 +231,8 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 	return cnt;
 }
 
+short LidarAng2ROS(short ang);
+
 void PublishLaserScan(ros::Publisher& laser_pub, RawData* fan, std::string& frame_id, double max_dist)
 {
 	sensor_msgs::LaserScan msg;
@@ -243,8 +244,8 @@ void PublishLaserScan(ros::Publisher& laser_pub, RawData* fan, std::string& fram
 	msg.scan_time = scan_time;
 	msg.time_increment = scan_time / fan->N;
 		
-	msg.angle_min = fan->ros_angle * M_PI/1800; 
-	msg.angle_max = (fan->ros_angle + fan->span) * M_PI/1800; 
+	msg.angle_min = (LidarAng2ROS(fan->angle + fan->span)) * M_PI/1800; 
+	msg.angle_max = msg.angle_min + fan->span * M_PI/1800; 
 
 	msg.angle_increment = (fan->span * M_PI/1800) / fan->N;
 
@@ -254,7 +255,7 @@ void PublishLaserScan(ros::Publisher& laser_pub, RawData* fan, std::string& fram
 	msg.intensities.resize(fan->N); 
 	msg.ranges.resize(fan->N);
 
-	for (int i=0; i<fan->N; i++)
+	for (int i=fan->N-1; i>=0; i--)
 	{
 		double d = fan->points[i].distance/1000.0;
 		if (fan->points[i].distance == 0 || d > max_dist) 
@@ -385,6 +386,7 @@ int main(int argc, char **argv)
 
 	// LiDAR comm type, could be "uart" or "udp"
 	priv_nh.param("type", g_type, std::string("uart")); 
+	printf("type is %s\n", g_type.c_str());
 
 #if 0
 	// dump raw data for debug
@@ -406,12 +408,13 @@ int main(int argc, char **argv)
 
 	priv_nh.getParam("rate_list", rate_list);
 
-#if 0
 	// for network comm
-	priv_nh.param("dev_ip", dev_ip, std::string("192.168.158.91"));
-	priv_nh.param("udp_port", udp_port, 5000);
-	priv_nh.param("tcp_port", tcp_port, 5000);
-#endif
+	std::string lidar_ip, group_ip;
+	priv_nh.param("lidar_ip", lidar_ip, std::string("192.168.158.91"));
+	priv_nh.param("group_ip", group_ip, std::string("192.168.158.91"));
+	int lidar_port, local_port;
+	priv_nh.param("lidar_port", lidar_port, 5000);
+	priv_nh.param("local_port", local_port, 50122);
 
 	// raw data format
 	int raw_bytes, normal_size;
@@ -486,12 +489,11 @@ int main(int argc, char **argv)
 	if (with_confidence) flags |= DF_WITH_INTENSITY;
 	if (hard_resample) flags |= DF_WITH_RESAMPLE;
 
-	bool stream_mode = (g_type != "udp");
-
-	HParser parser = ParserOpen(stream_mode, raw_bytes, flags, resample_res, with_chk);
+	HParser parser = ParserOpen(raw_bytes, flags, resample_res, with_chk);
 
 	PubHub* hub = new PubHub;
 	pthread_mutex_init(&hub->mtx, NULL);
+
 
 	if (g_type == "uart") 
 	{
@@ -504,7 +506,13 @@ int main(int argc, char **argv)
 		rates[rate_list.size()] = 0;
 		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parser, hub);
 	}
-	
+	else if (g_type == "udp") 
+	{
+		g_reader = StartUDPReader(lidar_ip.c_str(), lidar_port,
+			       	group_ip.c_str(), local_port, parser, hub);
+	}
+
+
 	while (ros::ok()) 
 	{ 
 		ros::spinOnce();
@@ -538,7 +546,7 @@ int main(int argc, char **argv)
 				for (int i=0; i<n; i++) delete fans[i];
 			}
 			else {
-			       	ros::Duration(0.08).sleep();
+			       	ros::Duration(0.001).sleep();
 			}
 		}
 	}

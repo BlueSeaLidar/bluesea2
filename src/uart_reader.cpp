@@ -235,7 +235,7 @@ int UartReader(UartInfo* info)
 				break;
 			} else {
 				
-				int nfan = ParserRun(info->hParser, nr, buf, &(fans[0]));
+				int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
 				//for (int i=0; i<nfan; i++)
 				//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
 				if (nfan > 0) {

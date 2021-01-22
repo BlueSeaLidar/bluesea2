@@ -41,7 +41,7 @@ struct RawData
 
 typedef void* HParser;
 
-HParser ParserOpen(bool, int raw_bytes, uint32_t flags, double resample_res, int with_chk);
+HParser ParserOpen(int raw_bytes, uint32_t flags, double resample_res, int with_chk);
 
 typedef bool (*Script)(void*, int cmd_len, const char* cmd_str, 
 		int pattern_len, const char* pattern_str, 
@@ -49,6 +49,7 @@ typedef bool (*Script)(void*, int cmd_len, const char* cmd_str,
 bool ParserScript(HParser, Script, void*);
 
 int ParserClose(HParser);
+int ParserRunStream(HParser, int len, unsigned char* buf, RawData* fans[]);
 int ParserRun(HParser, int len, unsigned char* buf, RawData* fans[]);
 
 extern char g_uuid[32];

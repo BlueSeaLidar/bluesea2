@@ -6,6 +6,7 @@
 #define HDR_SIZE 6
 #define HDR2_SIZE 8
 #define HDR3_SIZE 16
+#define HDR7_SIZE 28 
 #define BUF_SIZE 8*1024
 
 struct Parser 
@@ -47,6 +48,12 @@ struct RawDataHdr3
 	unsigned short fend;
 };
 
+short LidarAng2ROS(short ang)
+{
+	ang = -ang;
+	return ang < -1800 ? ang + 3600 : ang;
+}
+
 static uint32_t update_flags(unsigned char* buf)
 {
 	uint32_t v;
@@ -59,7 +66,7 @@ static unsigned char is_data(unsigned char* buf)
 	if (buf[1] != 0xfa)
 		return 0;
 		
-	if (buf[0] == 0xce || buf[0] == 0xcf || buf[0] == 0xdf)
+	if (buf[0] == 0xce || buf[0] == 0xcf || buf[0] == 0xdf || buf[0] == 0xc7)
 		return buf[0];
 
 	return 0;
@@ -109,6 +116,8 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 		return NULL;
 	}
 
+	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+
 	return dat;
 }
 
@@ -152,6 +161,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
 	//printf("get3 %d(%d)\n", hdr.angle, hdr.N);
 	
+	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
 
@@ -192,6 +202,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, int wit
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
 	//printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
 
+	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
 
@@ -237,6 +248,7 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, int wit
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
 	//printf("get DF %d=%d %d %d\n", hdr.angle, hdr.first, hdr.N, hdr.span);
 
+	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 
 }
@@ -374,11 +386,10 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 }
 
 
-HParser ParserOpen(bool stream_mode, int raw_bytes, uint32_t init_flags, double resample_res, int with_chksum)
+HParser ParserOpen(int raw_bytes, uint32_t init_flags, double resample_res, int with_chksum)
 {
 	Parser* parser = new Parser;
 
-	parser->stream_mode = stream_mode;
 	parser->rest_len = 0;
 	parser->raw_mode = raw_bytes;
 	parser->init_flags = init_flags;
@@ -396,56 +407,119 @@ int ParserClose(HParser hP)
 }
 
 
-short LidarAng2ROS(short ang)
-{
-	ang = -ang;
-	return ang < -1800 ? ang + 3600 : ang;
-}
 
-int ParserRun(HParser hP, int len, unsigned char* bytes, RawData* fans[]) 
+int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[]) 
 {
 	Parser* parser = (Parser*)hP;
 
 	int nfan = MAX_FANS;
 
-	if (parser->stream_mode) 
+	unsigned char* buf = new unsigned char[len + parser->rest_len];
+	if (!buf) {
+		printf("out of memory\n");
+		return -1;
+	}
+
+	if (parser->rest_len > 0) {
+		memcpy(buf, parser->rest_buf, parser->rest_len);
+	}
+	memcpy(buf+parser->rest_len, bytes, len);
+	len += parser->rest_len;
+
+	int used = ParseStream(parser, len, buf,  &nfan, fans);
+
+#if 0
+	for (int i=0; i<nfan; i++) 
 	{
-		unsigned char* buf = new unsigned char[len + parser->rest_len];
-		if (!buf) {
-			printf("out of memory\n");
-			return -1;
-		}
-
-		if (parser->rest_len > 0) {
-			memcpy(buf, parser->rest_buf, parser->rest_len);
-		}
-		memcpy(buf+parser->rest_len, bytes, len);
-		len += parser->rest_len;
-
-		int used = ParseStream(parser, len, buf,  &nfan, fans);
-
-		for (int i=0; i<nfan; i++) 
-		{
-			fans[i]->ros_angle = LidarAng2ROS(fans[i]->angle + fans[i]->span);
-		}
-
-		parser->rest_len = len - used;
-		if (parser->rest_len > 0) {
-			memcpy(parser->rest_buf, buf+used, parser->rest_len);
-		}
-
-		delete buf;
+		fans[i]->ros_angle = LidarAng2ROS(fans[i]->angle + fans[i]->span);
 	}
-	else {
-		int used = ParseStream(parser, len, bytes, &nfan, fans);
+#endif
 
-		for (int i=0; i<nfan; i++) 
-		{
-			fans[i]->ros_angle = LidarAng2ROS(fans[i]->angle + fans[i]->span);
-		}
+	parser->rest_len = len - used;
+	if (parser->rest_len > 0) {
+		memcpy(parser->rest_buf, buf+used, parser->rest_len);
 	}
+
+	delete buf;
 
 	return nfan;
+}
+
+int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[]) 
+{	
+	Parser* parser = (Parser*)hP;
+
+	uint8_t type = buf[0];
+
+	if (type == 0xCE)
+	{
+		RawDataHdr hdr;
+		memcpy(&hdr, buf, HDR_SIZE); 
+
+		if (HDR_SIZE + hdr.N*2+ 2 == len)
+		{
+			RawData* fan = GetData0xCE_2(hdr, buf,  parser->flags, parser->with_chk);
+			if ( fan) 
+			{
+				fans[0] = fan;
+				return 1;
+			}
+		}
+		else if (HDR_SIZE + hdr.N*3 + 2 == len)
+		{
+			RawData* fan = GetData0xCE_3(hdr, buf, parser->flags, parser->with_chk);
+			if (fan) 
+			{
+				fans[0] = fan;
+				return 1;
+			}
+		}
+		else printf("CE len %d N %d\n", len, hdr.N);
+		
+	}
+	else if (type == 0xCF) 
+	{
+		RawDataHdr2 hdr;
+		memcpy(&hdr, buf, HDR2_SIZE);
+
+		if (hdr.N*3+ HDR2_SIZE + 2 > len)
+		{
+			// need more bytes
+			printf("CF len %d N %d\n", len, hdr.N);
+			return 0;
+		}
+
+		RawData* fan = GetData0xCF(hdr, buf, parser->with_chk);
+		if (fan)
+		{
+			//printf("CF %d + %d %d\n", fan->angle, fan->span, fan->N);
+			fans[0] = fan;
+			return 1;
+		}
+	}
+	else if (type == 0xDF) 
+	{
+		RawDataHdr3 hdr;
+		memcpy(&hdr, buf, HDR3_SIZE);
+
+		if (hdr.N*3+ HDR3_SIZE + 2 == len)
+		{
+			// need more bytes
+			printf("DF len %d N %d\n", len, hdr.N);
+			return 0;
+		}
+
+		RawData* fan = GetData0xDF(hdr, buf, parser->with_chk);
+		if (fan)
+		{
+			//printf("set [%d] %d\n", *nfan, fan->angle);
+			fans[0] = fan;
+			return 1;
+		}
+	}
+
+	printf("skip packet %08x len %d\n", *(uint32_t*)buf, len);
+	return 0;
 }
 
 
