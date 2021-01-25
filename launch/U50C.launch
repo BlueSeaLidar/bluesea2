@@ -10,7 +10,7 @@
     <param name="output_360" value="true" />
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="true"/>
-    <param name="with_angle_filter" value="0"/>
+    <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-2.2"/>
     <param name="max_angle" value="2.2"/>
     <param name="hard_resample" value="true"/>
