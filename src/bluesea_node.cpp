@@ -268,8 +268,32 @@ void PublishLaserScan(ros::Publisher& laser_pub, RawData* fan, std::string& fram
 	laser_pub.publish(msg); 
 }
 
+double ROSAng(double ang)
+{
+	ang = -ang;
+	return ang < -180 ? ang + 360 : ang;
+}
 
-void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, double max_dist)
+
+int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
+{
+	int N = 0, cnt = 0;
+	for (int j=0; j<nfan; j++) 
+	{
+		for (int i=fans[j]->N-1; i>=0; i--, cnt++) 
+		{
+			//printf("ang %f\n", 180-fans[j]->points[i].degree);
+			if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
+			if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+			N++;
+		}
+	}
+	//printf("resize %d to %d, [%f, %f]\n", cnt, N, min_deg, max_deg);
+	return N;
+}
+
+void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, 
+		double max_dist, bool with_filter, double min_ang, double max_ang)
 {
 	sensor_msgs::LaserScan msg;
 
@@ -282,13 +306,24 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	double scan_time = 1/10.;
 	msg.scan_time = scan_time;
 	msg.time_increment = scan_time / N;
-		
-	msg.angle_min = -M_PI;
-	msg.angle_max = M_PI;
-	msg.angle_increment = M_PI*2 / N;
+
+	double min_deg = min_ang * 180 / M_PI;
+	double max_deg = max_ang * 180 / M_PI;
 
 	msg.range_min = 0.; 
 	msg.range_max = max_dist;//8.0; 
+
+	msg.angle_increment = M_PI*2 / N;
+
+	if (with_filter) 
+	{
+		N = GetCount(nfan, fans, min_deg, max_deg);
+		msg.angle_min = min_ang;
+		msg.angle_max = max_ang;
+	} else {
+		msg.angle_min = -M_PI;
+		msg.angle_max = M_PI;
+	}
 
 	msg.intensities.resize(N); 
 	msg.ranges.resize(N);
@@ -298,6 +333,11 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	{
 		for (int i=fans[j]->N-1; i>=0; i--) 
 		{
+			if (with_filter) {
+				if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
+				if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+			}
+
 			double d = fans[j]->points[i].distance/1000.0;
 			if (fans[j]->points[i].distance == 0 || d > max_dist) 
 				msg.ranges[N] = std::numeric_limits<float>::infinity();
@@ -311,7 +351,9 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	laser_pub.publish(msg); 
 }
 
-void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::string& frame_id, double max_dist)
+void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::string& frame_id, 
+		double max_dist,
+		bool with_filter, double min_ang, double max_ang)
 {
 	sensor_msgs::PointCloud cloud; 
 	cloud.header.stamp = ros::Time::now();
@@ -325,14 +367,29 @@ void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::stri
 	cloud.channels[0].name = "intensities"; 
 	cloud.channels[0].values.resize(N);
 
+
+	double min_deg = min_ang * 180 / M_PI;
+	double max_deg = max_ang * 180 / M_PI;
+	if (with_filter) 
+	{
+		N = GetCount(nfan, fans, min_deg, max_deg);
+	}
+
+
 	int idx = 0;
 	for (int j=0; j<nfan; j++) 
 	{
 		for (int i=0; i<fans[j]->N; i++) 
 		{
+			if (with_filter) {
+				if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
+				if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+			}
+
 			float r = fans[j]->points[i].distance/1000.0 ; 
 			// float a = j*M_PI/5 + i*M_PI/5/dat360[j].N;
 			float a = -fans[j]->points[i].degree * M_PI/180;
+
 			cloud.points[idx].x = cos(a) * r;
 			cloud.points[idx].y = sin(a) * r;
 			cloud.points[idx].z = 0;
@@ -447,9 +504,9 @@ int main(int argc, char **argv)
 							// false: publish every RawData (36 degree)
 							
 	// angle filter
-	int with_angle_filter;
+	bool with_angle_filter;
 	double min_angle, max_angle;
-	priv_nh.param("with_angle_filter", with_angle_filter, 0); // 1: enable angle filter, 0: diable
+	priv_nh.param("with_angle_filter", with_angle_filter, false); // true: enable angle filter, false: disable
 	priv_nh.param("min_angle", min_angle, -M_PI); // angle filter's low threshold, default value: -pi
        	priv_nh.param("max_angle", max_angle, M_PI); // angle filters' up threashold, default value: pi
 
@@ -537,11 +594,15 @@ int main(int argc, char **argv)
 			int n = GetAllFans(hub, soft_resample, resample_res, fans);
 			if (n > 0)
 			{ 
-				if (output_scan) 
-				       PublishLaserScan(laser_pub, n, fans, frame_id, max_dist);
+				if (output_scan) {
+				       PublishLaserScan(laser_pub, n, fans, frame_id, max_dist, 
+						       with_angle_filter, min_angle, max_angle);
+				}
 		
-				if (output_cloud)
-				       PublishCloud(cloud_pub, n, fans, frame_id, max_dist);
+				if (output_cloud) {
+				       PublishCloud(cloud_pub, n, fans, frame_id, max_dist, 
+						       with_angle_filter, min_angle, max_angle);
+				}
 
 				for (int i=0; i<n; i++) delete fans[i];
 			}
