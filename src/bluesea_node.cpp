@@ -233,11 +233,21 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 
 short LidarAng2ROS(short ang);
 
+void SetTimeStamp(RawData* dat) 
+{
+	ros::Time t = ros::Time::now();
+	dat->ts[0] = t.sec;
+	dat->ts[1] = t.nsec;
+}
+
 void PublishLaserScan(ros::Publisher& laser_pub, RawData* fan, std::string& frame_id, double max_dist)
 {
 	sensor_msgs::LaserScan msg;
 
-	msg.header.stamp = ros::Time::now();
+	//msg.header.stamp = ros::Time::now();
+	msg.header.stamp.sec = fan->ts[0];
+	msg.header.stamp.nsec = fan->ts[1];
+	
        	msg.header.frame_id = frame_id;
 
 	double scan_time = 1/10.;
@@ -292,6 +302,7 @@ int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
 	return N;
 }
 
+uint32_t last_ns = 0;
 void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, 
 		double max_dist, bool with_filter, double min_ang, double max_ang)
 {
@@ -300,7 +311,15 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	int N = 0;
 	for (int i=0; i<nfan; i++) N += fans[i]->N;
 
-	msg.header.stamp = ros::Time::now();
+	//msg.header.stamp = ros::Time::now();
+	msg.header.stamp.sec = fans[0]->ts[0];
+	msg.header.stamp.nsec = fans[0]->ts[1];
+
+#if 0
+	printf("tv %d\n", msg.header.stamp.nsec < last_ns ? (msg.header.stamp.nsec + (1000000000- last_ns)) : msg.header.stamp.nsec - last_ns);
+	last_ns = msg.header.stamp.nsec;
+#endif
+	
        	msg.header.frame_id = frame_id;
 
 	double scan_time = 1/10.;
@@ -356,7 +375,11 @@ void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::stri
 		bool with_filter, double min_ang, double max_ang)
 {
 	sensor_msgs::PointCloud cloud; 
-	cloud.header.stamp = ros::Time::now();
+	//cloud.header.stamp = ros::Time::now();
+
+	cloud.header.stamp.sec = fans[0]->ts[0];
+	cloud.header.stamp.nsec = fans[0]->ts[1];
+
 	cloud.header.frame_id = frame_id; 
 
 	int N = 0;
