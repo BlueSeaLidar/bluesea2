@@ -33,6 +33,7 @@ struct RawData
 	unsigned short fend;
 	short ros_angle;	// 0.1 degree
 	DataPoint points[MAX_POINTS];
+	uint32_t ts[2];
 
 	//unsigned short distance[1000];
 	//unsigned char confidence[1000];
@@ -51,6 +52,8 @@ bool ParserScript(HParser, Script, void*);
 int ParserClose(HParser);
 int ParserRunStream(HParser, int len, unsigned char* buf, RawData* fans[]);
 int ParserRun(HParser, int len, unsigned char* buf, RawData* fans[]);
+
+void SetTimeStamp(RawData*); 
 
 extern char g_uuid[32];
 
