@@ -118,6 +118,9 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 
 	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 
+					
+	SetTimeStamp(dat);
+
 	return dat;
 }
 
@@ -161,6 +164,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
 	//printf("get3 %d(%d)\n", hdr.angle, hdr.N);
 	
+	SetTimeStamp(dat);
 	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
@@ -202,6 +206,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, int wit
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
 	//printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
 
+	SetTimeStamp(dat);
 	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
@@ -248,6 +253,7 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, int wit
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
 	//printf("get DF %d=%d %d %d\n", hdr.angle, hdr.first, hdr.N, hdr.span);
 
+	SetTimeStamp(dat);
 	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 
