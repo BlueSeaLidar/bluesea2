@@ -30,7 +30,7 @@ How to start/stop LiDAR detection
 How to run Lanhai ros node (UDP Network Version)
 =====================================================================
 1) sudo ifconfig eth0:1 192.168.158.200 # add sub net
-2) rosrun bluesea2 bluesea2_node _frame_id:=map _type:=udp _dev_ip:=192.168.158.91 _firmware_version:=2
+2) rosrun bluesea2 bluesea2_node _frame_id:=map _type:=udp _lidar_ip:=192.168.158.91 _firmware_version:=2
 3) optional : rostopic hz /scan
 4) optional : rosrun rviz rviz # 
 
@@ -46,8 +46,9 @@ Parameters
 * int baud_rate; // baud rate, -1 : auto detect current baud rate
 
 // for network comm
-* std::string dev_ip; // network 
-* int udp_port, tcp_port; 
+* std::string lidar_ip; // network 
+* std::string group_ip; // multicast address
+* int lidar_port, local_port, tcp_port; 
 
 // for intput data format
 * bool unit_is_mm; //  0 : unit of raw data distance is CM, 1: MM
