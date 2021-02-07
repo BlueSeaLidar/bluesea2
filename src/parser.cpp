@@ -15,9 +15,11 @@ struct Parser
 	int rest_len;
 	unsigned char rest_buf[BUF_SIZE];
 	uint32_t flags;
-	uint32_t init_flags;
+	uint32_t device_ability;
+	uint32_t init_states;
+	int init_rpm;
 	double resample_res;
-	int with_chk;
+	bool with_chk;
 	int raw_mode;
 };
 
@@ -48,6 +50,18 @@ struct RawDataHdr3
 	unsigned short fend;
 };
 
+struct RawDataHdr7 {
+	uint16_t code;
+	uint16_t N;
+	uint16_t whole_fan;
+	uint16_t ofset;
+	uint32_t beg_ang;
+	uint32_t end_ang;
+	uint32_t flags;
+	uint32_t timestamp;
+	uint32_t dev_id;
+};
+
 short LidarAng2ROS(short ang)
 {
 	ang = -ang;
@@ -63,16 +77,16 @@ static uint32_t update_flags(unsigned char* buf)
 
 static unsigned char is_data(unsigned char* buf)
 {
-	if (buf[1] != 0xfa)
+	if (buf[1] != 0xFA)
 		return 0;
 		
-	if (buf[0] == 0xce || buf[0] == 0xcf || buf[0] == 0xdf || buf[0] == 0xc7)
+	if (buf[0] == 0xCE || buf[0] == 0xCF || buf[0] == 0xDF || buf[0] == 0xC7)
 		return buf[0];
 
 	return 0;
 }
 
-static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_t flags, int with_chk)
+static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_t flags, bool with_chk)
 {
 	RawData* dat = new RawData;
 	memcpy(dat, &hdr, HDR_SIZE);
@@ -109,7 +123,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 
 	memcpy(&chk, buf+HDR_SIZE+hdr.N*2, 2);
 
-	if (with_chk != 0 && chk != sum) 
+	if (with_chk && chk != sum) 
 	{
 		delete dat;
 		printf("chksum error");
@@ -125,7 +139,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 }
 
 
-static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_t flags, int with_chk)
+static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_t flags, bool with_chk)
 {
 	RawData* dat = new RawData;
 	memcpy(dat, &hdr, HDR_SIZE);
@@ -154,7 +168,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 
 	memcpy(&chk, pdat, 2);
 
-	if (with_chk != 0 && chk != sum) 
+	if (with_chk && chk != sum) 
 	{
 		delete dat;
 		printf("chksum ce error");
@@ -169,7 +183,58 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	return dat;
 }
 
-static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, int with_chk)
+#if 0
+static RawData* GetData0xC7(const RawDataHdr7& hdr, unsigned char* pdat, bool with_chk)
+{
+	RawData* dat = new RawData;
+
+
+	memcpy(dat, &hdr, HDR7_SIZE);
+
+	unsigned short sum = 0;
+
+	unsigned short* psdat = (unsigned short*)(pdat+2);
+	for (int i=1; i<HDR7_SIZE/2; i++)
+		sum += psdat[i];
+
+	pdat += HDR7_SIZE;
+
+	for (int i = 0; i < hdr.N; i++)
+	{
+		dat->points[i].confidence = *pdat++;
+		sum += dat->points[i].confidence;
+
+		unsigned short v = *pdat++;
+		unsigned short v2 = *pdat++;
+
+		unsigned short vv = (v2 << 8) | v;
+
+		sum += vv;
+		dat->points[i].distance = vv;
+		//dat->points[i].angle = hdr.angle*10 + hdr.span * i *10 / hdr.N;
+		dat->points[i].degree = hdr.angle/10.0 + (hdr.span * i) / (10.0 * hdr.N);
+	}
+
+	memcpy(&chk, pdat, 2);
+
+	if (with_chk && chk != sum)
+	{
+		delete dat;
+		printf("chksum cf error");
+		return NULL;
+	}
+
+	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
+	//printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
+
+	SetTimeStamp(dat);
+	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	return dat;
+}
+#endif
+
+
+static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, bool with_chk)
 {
 	RawData* dat = new RawData;
 	memcpy(dat, &hdr, HDR2_SIZE);
@@ -196,7 +261,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, int wit
 
 	memcpy(&chk, pdat, 2);
 
-	if (with_chk != 0 && chk != sum)
+	if (with_chk && chk != sum)
 	{
 		delete dat;
 		printf("chksum cf error");
@@ -211,7 +276,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, int wit
 	return dat;
 }
 
-static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, int with_chk)
+static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, bool with_chk)
 {
 	RawData* dat = new RawData;
 	memcpy(dat, &hdr, HDR3_SIZE);
@@ -243,7 +308,7 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, int wit
 
 	memcpy(&chk, pdat, 2);
 
-	if (with_chk != 0 && chk != sum)
+	if (with_chk  && chk != sum)
 	{
 		delete dat;
 		printf("chksum df error");
@@ -367,6 +432,26 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 			}
 			idx += hdr.N*3+ HDR2_SIZE + 2;
 		}
+#if 0
+		else if (type == 0xC7) {
+			if (idx + hdr.N*5+ HDR7_SIZE + 2 > len)
+			{
+				// need more bytes
+				break;
+			}
+		       	RawDataHdr7 hdr7;
+			memcpy(&hdr7, buf+idx, HDR7_SIZE);
+
+			RawData* fan = GetData0xC7(hdr7, buf+idx, parser->with_chk);
+			if (fan)
+			{
+				//printf("set [%d] %d\n", *nfan, fan->angle);
+				fans[*nfan] = fan;
+				*nfan += 1;
+			}
+			idx += hdr.N*5 + HDR7_SIZE + 2;
+		}
+#endif
 		else if (type == 0xDF) {
 			if (idx + hdr.N*3+ HDR3_SIZE + 2 > len)
 			{
@@ -392,14 +477,18 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 }
 
 
-HParser ParserOpen(int raw_bytes, uint32_t init_flags, double resample_res, int with_chksum)
+HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states, 
+		int init_rpm, double resample_res, bool with_chksum)
 {
 	Parser* parser = new Parser;
 
 	parser->rest_len = 0;
 	parser->raw_mode = raw_bytes;
-	parser->init_flags = init_flags;
-	parser->flags = init_flags;
+	parser->init_rpm = init_rpm;
+	parser->with_chk = with_chksum;
+	parser->device_ability = device_ability;
+	parser->init_states = init_states;
+	parser->flags = init_states;
 	parser->resample_res = resample_res;
 
 	return parser;
@@ -537,54 +626,103 @@ bool ParserScript(HParser hP, Script script, void* hnd)
 
 	//read device's UUID 
 	char buf[32];
-	for (int i=0; i<10; i++)
-	{
-		if (script(hnd, 6, "LUUIDH", 12, "PRODUCT SN: ", 9, g_uuid))
+	if (parser->device_ability & DF_WITH_UUID) {
+		for (int i=0; i<10; i++)
 		{
-			printf("get product SN : \'%s\'\n", g_uuid);
-			break;
+			if (script(hnd, 6, "LUUIDH", 12, "PRODUCT SN: ", 9, g_uuid))
+			{
+				printf("get product SN : \'%s\'\n", g_uuid);
+				break;
+			}
 		}
 	}
 
 	// setup output data format
-	for (int i=0; i<10; i++) 
-	{
-		const char* cmd = (parser->init_flags & DF_UNIT_IS_MM) ?  "LMDMMH" : "LMDCMH"; 
-		if (script(hnd, 6, cmd, 10, "SET LiDAR ", 9, buf) )
+	if (parser->device_ability & DF_UNIT_IS_MM) {
+		for (int i=0; i<10; i++) 
 		{
-			printf("set LiDAR unit to %s\n", buf);
-			break;
+			const char* cmd = (parser->init_states & DF_UNIT_IS_MM) ?  "LMDMMH" : "LMDCMH"; 
+			if (script(hnd, 6, cmd, 10, "SET LiDAR ", 9, buf) )
+			{
+				printf("set LiDAR unit to %s\n", buf);
+				break;
+			}
 		}
 	}
 
 	// enable/disable output intensity
-	for (int i=0; i<10; i++) 
-	{
-		const char* cmd = (parser->init_flags & DF_WITH_INTENSITY) ? "LOCONH" : "LNCONH"; 
-		if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf) )
+	if (parser->device_ability & DF_WITH_INTENSITY) {
+		for (int i=0; i<10; i++) 
 		{
-			printf("set LiDAR confidence to %s\n", buf);
-			break;
+			const char* cmd = (parser->init_states & DF_WITH_INTENSITY) ? "LOCONH" : "LNCONH"; 
+			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf) )
+			{
+				printf("set LiDAR confidence to %s\n", buf);
+				break;
+			}
+		}
+	}
+
+
+	// enable/disable shadow filter
+	if (parser->device_ability & DF_DESHADOWED) {
+		for (int i=0; i<10; i++) 
+		{
+			const char* cmd = (parser->init_states & DF_DESHADOWED) ? "LFFF1H" : "LFFF0H"; 
+			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf) )
+			{
+				printf("set LiDAR shadow filter to %s\n", buf);
+				break;
+			}
+		}
+	}
+
+
+	// enable/disable smooth 
+	if (parser->device_ability & DF_SMOOTHED) {
+		for (int i=0; i<10; i++) 
+		{
+			const char* cmd = (parser->init_states & DF_SMOOTHED) ? "LSSS1H" : "LSSS0H"; 
+			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf) )
+			{
+				printf("set LiDAR smooth to %s\n", buf);
+				break;
+			}
+		}
+	}
+
+	// setup rpm
+	if (parser->init_rpm > 300 && parser->init_rpm < 3000) {
+		for (int i=0; i<10; i++) 
+		{
+			char cmd[32];
+			sprintf(cmd, "LSRPM:%dH", parser->init_rpm);
+			if (script(hnd, strlen(cmd), cmd, 3, "RPM", 5, buf) )
+			{
+				printf("set RPM to %s\n", buf);
+				break;
+			}
 		}
 	}
 
 	// set hard resample
-	for (int i=0; i<10; i++) 
-	{
-		char cmd[32] = "LSRES:001H";
-		if (parser->init_flags & DF_WITH_RESAMPLE)
+	if (parser->device_ability & DF_WITH_RESAMPLE) {
+		for (int i=0; i<10; i++) 
 		{
-			sprintf(cmd, "LSRES:%03dH", int(parser->resample_res*1000));
-		}
+			char cmd[32] = "LSRES:001H";
+			if (parser->init_states & DF_WITH_RESAMPLE)
+			{
+				sprintf(cmd, "LSRES:%03dH", int(parser->resample_res*1000));
+			}
 
-		char pattern[] = "set resolution ";
-		if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf) )
-		{
-			printf("set resolution %s\n", buf);
-			break;
+			char pattern[] = "set resolution ";
+			if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf) )
+			{
+				printf("set resolution %s\n", buf);
+				break;
+			}
 		}
 	}
-
 
 	return true;
 }
