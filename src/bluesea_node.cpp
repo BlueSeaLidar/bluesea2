@@ -41,19 +41,11 @@ bool SendCmd(int len, char* cmd)
 	}
 	else if (g_type == "udp") 
 	{
-		SendUdpCmd(g_reader, len, cmd);
+		return SendUdpCmd(g_reader, len, cmd);
 	}
 	else if (g_type == "tcp")
 	{
-#if 0
-		if ( send(g_tcp_socket, cmd, 6, 0) != 6)
-		{
-			ROS_ERROR("Stop motor, send tcp error");
-			return false;
-		}
-		ROS_INFO("Stop motor");
-		return true;
-#endif
+		return SendTcpCmd(g_reader, len, cmd);
 	}
 	return false;
 }
@@ -456,17 +448,47 @@ bool start_motor(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
 	return SendCmd(6, cmd);
 }
 
+uint32_t get_device_ability(const std::string& platform) 
+{
+	if (platform == "LDS-50C-E") 
+	{
+		return	DF_UNIT_IS_MM |
+		       	DF_WITH_INTENSITY |
+		       	DF_DESHADOWED	|
+		       	DF_SMOOTHED |	
+			DF_WITH_RESAMPLE |
+		       	DF_WITH_UUID;
+	}
+	else if (platform == "LDS-50C-S") 
+	{
+		return	DF_UNIT_IS_MM |
+		       	DF_WITH_INTENSITY |
+		       	DF_DESHADOWED	|
+		       	DF_SMOOTHED |	
+		       	DF_WITH_UUID;
+	}
+	else if (platform == "LDS-50C-S") 
+	{
+		return	DF_UNIT_IS_MM | DF_WITH_INTENSITY ;
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "bluesea2_laser_publisher");
        	ros::NodeHandle n;
        	ros::NodeHandle priv_nh("~");
 	
-	std_msgs::UInt16 rpms; 
+	//std_msgs::UInt16 rpms; 
 
 	// LiDAR comm type, could be "uart" or "udp"
 	priv_nh.param("type", g_type, std::string("uart")); 
 	printf("type is %s\n", g_type.c_str());
+
+	std::string platform;
+	priv_nh.param("platform", platform, std::string("LDS-50C-S"));
 
 #if 0
 	// dump raw data for debug
@@ -491,7 +513,7 @@ int main(int argc, char **argv)
 	// for network comm
 	std::string lidar_ip, group_ip;
 	priv_nh.param("lidar_ip", lidar_ip, std::string("192.168.158.91"));
-	priv_nh.param("group_ip", group_ip, std::string("192.168.158.91"));
+	priv_nh.param("group_ip", group_ip, std::string("224.1.1.91"));
 	int lidar_port, local_port;
 	priv_nh.param("lidar_port", lidar_port, 5000);
 	priv_nh.param("local_port", local_port, 50122);
@@ -526,6 +548,11 @@ int main(int argc, char **argv)
 	priv_nh.param("output_360", output_360, true); // true: packet data of 360 degree (multiple RawData), publish once
 							// false: publish every RawData (36 degree)
 							
+	// RPM
+	int init_rpm;
+	priv_nh.param("rpm", init_rpm, -1); // set motor RPM
+							
+							
 	// angle filter
 	bool with_angle_filter;
 	double min_angle, max_angle;
@@ -552,10 +579,12 @@ int main(int argc, char **argv)
        	
 	ros::Publisher laser_pub, cloud_pub;
 
-	if (output_cloud)
+	if (output_cloud) {
 		cloud_pub = n.advertise<sensor_msgs::PointCloud>("cloud", 50);
-	if (output_scan)
+	}
+	if (output_scan) {
 		laser_pub = n.advertise<sensor_msgs::LaserScan>("scan", 50);
+	}
    
 	ros::ServiceServer stop_srv = n.advertiseService("stop_motor", stop_motor);
        	ros::ServiceServer start_srv = n.advertiseService("start_motor", start_motor);
@@ -563,17 +592,17 @@ int main(int argc, char **argv)
 	dynamic_reconfigure::Server<bluesea2::DynParamsConfig> server;
        	server.setCallback( boost::bind(&setup_params, _1, _2) );
 
+	uint32_t device_ability = 0;
 
-	uint32_t flags = 0;
-	if (unit_is_mm) flags |= DF_UNIT_IS_MM;
-	if (with_confidence) flags |= DF_WITH_INTENSITY;
-	if (hard_resample) flags |= DF_WITH_RESAMPLE;
+	uint32_t init_states = 0;
+	if (unit_is_mm) init_states |= DF_UNIT_IS_MM;
+	if (with_confidence) init_states |= DF_WITH_INTENSITY;
+	if (hard_resample) init_states |= DF_WITH_RESAMPLE;
 
-	HParser parser = ParserOpen(raw_bytes, flags, resample_res, with_chk);
+	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk);
 
 	PubHub* hub = new PubHub;
 	pthread_mutex_init(&hub->mtx, NULL);
-
 
 	if (g_type == "uart") 
 	{
@@ -591,7 +620,10 @@ int main(int argc, char **argv)
 		g_reader = StartUDPReader(lidar_ip.c_str(), lidar_port,
 			       	group_ip.c_str(), local_port, parser, hub);
 	}
-
+	else if (g_type == "tcp") 
+	{
+		g_reader = StartTCPReader(lidar_ip.c_str(), lidar_port, parser, hub);
+	}
 
 	while (ros::ok()) 
 	{ 
