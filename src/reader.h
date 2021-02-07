@@ -20,4 +20,8 @@ HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port,
 
 bool SendUdpCmd(HReader hr, int len, char* cmd);
 
+HReader StartTCPReader(const char* lidar_ip, unsigned short lidar_port, HParser hParser, HPublish hPub);
+
+bool SendTcpCmd(HReader hr, int len, char* cmd);
+
 #endif
