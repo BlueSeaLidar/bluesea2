@@ -2,11 +2,12 @@
 #define _PARSER_
 
 #define DF_UNIT_IS_MM 		0x0001
-#define DF_WITH_INTENSITY 	0X0002 
+#define DF_WITH_INTENSITY 	0X0002
 #define DF_DESHADOWED		0x0004
 #define DF_SMOOTHED		0x0008
 #define DF_FAN_90		0x0020
 #define DF_WITH_RESAMPLE	0X0080
+#define DF_WITH_UUID		0X1000
 
 #define MAX_FANS 120
 
@@ -42,7 +43,12 @@ struct RawData
 
 typedef void* HParser;
 
-HParser ParserOpen(int raw_bytes, uint32_t flags, double resample_res, int with_chk);
+HParser ParserOpen(int raw_bytes, 
+		uint32_t device_ability,
+	       	uint32_t flags, 
+		int init_rpm,
+		double resample_res,
+	       	bool with_chk);
 
 typedef bool (*Script)(void*, int cmd_len, const char* cmd_str, 
 		int pattern_len, const char* pattern_str, 
