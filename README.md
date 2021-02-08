@@ -12,7 +12,6 @@ How to run Lanhai ros node (Serial Port Version)
 2) or Run : sudo chmod 666 /dev/ttyUSB0 # make usb serial port readable
 
 
-
 ## if your lidar model is LDS-50C-2 :
 * rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=true _output_cloud:=true _with_resample:=true _resample_res:=0.5 _unit_is_mm:=true _with_confidence:=true
 * or use roslaunch src/bluesea/launch/LDS-50C-2.launch
@@ -51,20 +50,21 @@ Parameters
 * int baud_rate; // baud rate, -1 : auto detect current baud rate
 
 // for network comm
-* std::string lidar_ip; // network 
+* std::string lidar_ip; // LiDAR's network address 
 * std::string group_ip; // multicast address
-* int lidar_port, local_port, tcp_port; 
+* int lidar_port; // lidar's port (TCP / UDP)
+* int local_port; // ROS machine's port (TCP / UDP)
 
 // for intput data format
-* bool unit_is_mm; //  0 : unit of raw data distance is CM, 1: MM
-* bool with_confidence; // 1: raw data with intensity, 0: no intensity
-* bool with_checksum; // 1 : enable packet checksum
+* bool unit_is_mm; //  true : unit of raw data distance is CM, false: MM
+* bool with_confidence; // true: raw data with intensity, false: no intensity
+* bool with_checksum; // true : enable packet checksum
 
 // output data type
-* bool output_scan; // 1: enable output angle+distance mode, 0: disable
-* bool output_cloud; // 1: enable output xyz format data, 0 : disable
-* bool output_360; // 1: collect multiple RawData packets (360 degree), then publish
-				// 0: publish every RawData (36 degree)
+* bool output_scan; // true: enable output angle+distance mode, false: disable
+* bool output_cloud; // true: enable output xyz format data, false : disable
+* bool output_360; // true: collect multiple RawData packets (360 degree), then publish
+				// false: publish every RawData (36 degree)
 * std::string frame_id;	// frame information, could be used for rviz
 
 // angle composate
