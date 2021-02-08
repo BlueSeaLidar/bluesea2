@@ -13,6 +13,8 @@
 
 #define MAX_POINTS 1000
 
+#define ANYONE 0x1234abcd
+
 struct DataPoint
 {
 	uint16_t idx;
@@ -48,7 +50,8 @@ HParser ParserOpen(int raw_bytes,
 	       	uint32_t flags, 
 		int init_rpm,
 		double resample_res,
-	       	bool with_chk);
+	       	bool with_chk, 
+		uint32_t dev_id);
 
 typedef bool (*Script)(void*, int cmd_len, const char* cmd_str, 
 		int pattern_len, const char* pattern_str, 
