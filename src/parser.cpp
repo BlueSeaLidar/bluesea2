@@ -9,20 +9,6 @@
 #define HDR7_SIZE 28 
 #define BUF_SIZE 8*1024
 
-struct Parser 
-{
-	bool stream_mode;
-	int rest_len;
-	unsigned char rest_buf[BUF_SIZE];
-	uint32_t flags;
-	uint32_t device_ability;
-	uint32_t init_states;
-	int init_rpm;
-	double resample_res;
-	bool with_chk;
-	int raw_mode;
-};
-
 struct RawDataHdr
 {
 	unsigned short code;
@@ -61,6 +47,38 @@ struct RawDataHdr7 {
 	uint32_t timestamp;
 	uint32_t dev_id;
 };
+
+struct FanSegment
+{
+	RawDataHdr7 hdr; 
+
+	uint16_t dist[MAX_POINTS];
+	uint16_t angle[MAX_POINTS];
+	uint8_t energy[MAX_POINTS];
+
+	struct FanSegment* next;
+};
+
+
+struct Parser 
+{
+	bool stream_mode;
+	int rest_len;
+	unsigned char rest_buf[BUF_SIZE];
+	uint32_t flags;
+	uint32_t device_ability;
+	uint32_t init_states;
+	int init_rpm;
+	double resample_res;
+	bool with_chk;
+	int raw_mode;
+
+	uint32_t dev_id;
+
+	FanSegment* fan_segs;
+};
+
+
 
 short LidarAng2ROS(short ang)
 {
@@ -183,55 +201,172 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	return dat;
 }
 
-#if 0
-static RawData* GetData0xC7(const RawDataHdr7& hdr, unsigned char* pdat, bool with_chk)
+static FanSegment* GetFanSegment(const RawDataHdr7& hdr, uint8_t* pdat, bool with_chk)
 {
-	RawData* dat = new RawData;
+	FanSegment* fan_seg = new FanSegment;
+	if (!fan_seg) {
+		printf("out of memory\n");
+		return NULL;
+	}
+	fan_seg->hdr = hdr;
+	fan_seg->next = NULL;
 
-
-	memcpy(dat, &hdr, HDR7_SIZE);
-
-	unsigned short sum = 0;
-
-	unsigned short* psdat = (unsigned short*)(pdat+2);
-	for (int i=1; i<HDR7_SIZE/2; i++)
-		sum += psdat[i];
-
-	pdat += HDR7_SIZE;
-
-	for (int i = 0; i < hdr.N; i++)
+	uint16_t sum = 0;
+	//if (with_chk)
 	{
-		dat->points[i].confidence = *pdat++;
-		sum += dat->points[i].confidence;
-
-		unsigned short v = *pdat++;
-		unsigned short v2 = *pdat++;
-
-		unsigned short vv = (v2 << 8) | v;
-
-		sum += vv;
-		dat->points[i].distance = vv;
-		//dat->points[i].angle = hdr.angle*10 + hdr.span * i *10 / hdr.N;
-		dat->points[i].degree = hdr.angle/10.0 + (hdr.span * i) / (10.0 * hdr.N);
+		uint16_t* pchk = (uint16_t*)pdat;
+		for (int i=1; i<HDR7_SIZE/2; i++) 
+			sum += pchk[i];
 	}
 
-	memcpy(&chk, pdat, 2);
 
-	if (with_chk && chk != sum)
+	uint8_t* pDist = pdat + HDR7_SIZE;
+       	uint8_t* pAngle = pdat + HDR7_SIZE + 2*hdr.N;
+	uint8_t* energy = pdat + HDR7_SIZE + 4*hdr.N;
+
+	for (int i=0; i<hdr.N; i++, pDist+=2, pAngle+=2)
 	{
-		delete dat;
-		printf("chksum cf error");
+		fan_seg->dist[i] = ((uint16_t)(pDist[1])<<8) | pDist[0];
+		fan_seg->angle[i] = ((uint16_t)(pAngle[1])<<8) | pAngle[0];
+		fan_seg->energy[i] = energy[i];
+
+		sum += fan_seg->dist[i];
+		sum += fan_seg->angle[i];
+		sum += energy[i];
+	}
+
+	uint8_t* pchk = pdat + HDR7_SIZE + 5*hdr.N;
+	uint16_t chksum = ((uint16_t)(pchk[1])<<8) | pchk[0];
+	if (chksum != sum) {
+		printf("checksum error\n");
+		delete fan_seg;
 		return NULL;
 	}
 
-	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
-	//printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
+	return fan_seg;
+}
 
-	SetTimeStamp(dat);
-	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+
+static RawData* PackFanData(FanSegment* seg)
+{
+	RawData* dat = new RawData;
+	if (!dat) {
+		printf("out of memory\n");
+		return NULL;
+	}
+
+	dat->code = 0xfac7;
+	dat->N = seg->hdr.whole_fan;
+	dat->angle = seg->hdr.beg_ang/100; // 0.1 degree
+	dat->span = (seg->hdr.end_ang - seg->hdr.beg_ang)/100; // 0.1 degree
+	dat->fbase = 0;
+	dat->first = 0;
+	dat->last = 0;
+	dat->fend = 0;
+
+	int count = 0;
+	while (seg) 
+	{
+		for (int i=0; i<seg->hdr.N; i++, count++) 
+		{
+			dat->points[count].confidence = seg->energy[i];
+			dat->points[count].distance = seg->dist[i];
+			dat->points[count].degree = (seg->angle[i] + seg->hdr.beg_ang) / 100.0;
+		}
+	
+		seg = seg->next;
+	}
+
 	return dat;
 }
-#endif
+
+static int GetFanPointCount(FanSegment* seg) 
+{
+	int n = 0;
+
+	while (seg) { n += seg->hdr.N;  seg = seg->next; }
+
+	return n;
+}
+
+static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pdat)
+{
+	if (parser->dev_id != ANYONE && hdr.dev_id != parser->dev_id) { 
+		// not my data
+		return NULL;
+	}
+	
+	FanSegment* fan_seg = GetFanSegment(hdr, pdat, parser->with_chk);
+	if (!fan_seg) {
+		return NULL;
+	}
+		
+	//printf("fan %d %d\n", fan_seg->hdr.beg_ang, fan_seg->hdr.ofset);
+	
+	if (parser->fan_segs != NULL) 
+	{
+		FanSegment* seg = parser->fan_segs;
+
+	       	if (seg->hdr.timestamp != fan_seg->hdr.timestamp) 
+		{
+			printf("drop old fan segments\n");
+			while (seg) {
+				parser->fan_segs = seg->next;
+				delete seg;
+			}
+			parser->fan_segs = fan_seg;
+		} else {
+		       	while (seg) {
+				if (seg->hdr.ofset == fan_seg->hdr.ofset) {
+					printf("drop duplicated segment\n");
+					delete fan_seg;
+					fan_seg = NULL;
+					break;
+				}
+				if (seg->next == NULL) {
+					seg->next = fan_seg;
+					break;
+				}
+				seg = seg->next;
+			}
+		}
+	}
+
+	if (parser->fan_segs == NULL && fan_seg != NULL)
+	{
+		parser->fan_segs = fan_seg;
+	}
+	
+	// if (parser->fan_segs == NULL) { return NULL; }
+
+	int N = GetFanPointCount(parser->fan_segs); 
+
+	if (N >= parser->fan_segs->hdr.whole_fan) 
+	{
+		RawData* dat = NULL;
+		if (N == parser->fan_segs->hdr.whole_fan) 
+		{
+			dat = PackFanData( parser->fan_segs);
+		}
+
+		// remove segments
+		FanSegment* seg = parser->fan_segs;
+		while (seg) {
+			parser->fan_segs = seg->next;
+			delete seg;
+			seg = parser->fan_segs;
+		}
+
+		if (dat) {
+			SetTimeStamp(dat);
+		       	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+		}
+		
+		return dat;
+	}
+		
+	return NULL;
+}
 
 
 static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, bool with_chk)
@@ -432,7 +567,6 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 			}
 			idx += hdr.N*3+ HDR2_SIZE + 2;
 		}
-#if 0
 		else if (type == 0xC7) {
 			if (idx + hdr.N*5+ HDR7_SIZE + 2 > len)
 			{
@@ -442,7 +576,7 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 		       	RawDataHdr7 hdr7;
 			memcpy(&hdr7, buf+idx, HDR7_SIZE);
 
-			RawData* fan = GetData0xC7(hdr7, buf+idx, parser->with_chk);
+			RawData* fan = GetData0xC7(parser, hdr7, buf+idx);
 			if (fan)
 			{
 				//printf("set [%d] %d\n", *nfan, fan->angle);
@@ -451,7 +585,6 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 			}
 			idx += hdr.N*5 + HDR7_SIZE + 2;
 		}
-#endif
 		else if (type == 0xDF) {
 			if (idx + hdr.N*3+ HDR3_SIZE + 2 > len)
 			{
@@ -478,7 +611,7 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 
 
 HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states, 
-		int init_rpm, double resample_res, bool with_chksum)
+		int init_rpm, double resample_res, bool with_chksum, uint32_t dev_id)
 {
 	Parser* parser = new Parser;
 
@@ -490,6 +623,8 @@ HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
 	parser->init_states = init_states;
 	parser->flags = init_states;
 	parser->resample_res = resample_res;
+	parser->fan_segs = NULL;
+	parser->dev_id = dev_id;
 
 	return parser;
 }
@@ -597,7 +732,7 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 		RawDataHdr3 hdr;
 		memcpy(&hdr, buf, HDR3_SIZE);
 
-		if (hdr.N*3+ HDR3_SIZE + 2 == len)
+		if (hdr.N*3+ HDR3_SIZE + 2 > len)
 		{
 			// need more bytes
 			printf("DF len %d N %d\n", len, hdr.N);
@@ -612,6 +747,27 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 			return 1;
 		}
 	}
+	else if (type == 0xC7) 
+	{
+		RawDataHdr7 hdr;
+		memcpy(&hdr, buf, HDR7_SIZE);
+
+		if (hdr.N*5+ HDR7_SIZE + 2 > len)
+		{
+			// need more bytes
+			//printf("C7 len %d N %d\n", len, hdr.N);
+			return 0;
+		}
+
+		RawData* fan = GetData0xC7(parser, hdr, buf);
+		if (fan)
+		{
+			//printf("set [%d] %d\n", *nfan, fan->angle);
+			fans[0] = fan;
+			return 1;
+		}
+	}
+
 
 	printf("skip packet %08x len %d\n", *(uint32_t*)buf, len);
 	return 0;
