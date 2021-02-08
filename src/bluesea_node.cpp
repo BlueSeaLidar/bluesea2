@@ -518,6 +518,11 @@ int main(int argc, char **argv)
 	priv_nh.param("lidar_port", lidar_port, 5000);
 	priv_nh.param("local_port", local_port, 50122);
 
+
+	// device identity in data packets, used when multiple lidars connect to single controller
+	int dev_id;
+	priv_nh.param("dev_id", dev_id, ANYONE); // 
+
 	// raw data format
 	int raw_bytes, normal_size;
 	bool unit_is_mm, with_confidence, with_chk;
@@ -592,14 +597,16 @@ int main(int argc, char **argv)
 	dynamic_reconfigure::Server<bluesea2::DynParamsConfig> server;
        	server.setCallback( boost::bind(&setup_params, _1, _2) );
 
-	uint32_t device_ability = 0;
+	// 
+	uint32_t device_ability = get_device_ability(platform);
 
+	//
 	uint32_t init_states = 0;
 	if (unit_is_mm) init_states |= DF_UNIT_IS_MM;
 	if (with_confidence) init_states |= DF_WITH_INTENSITY;
 	if (hard_resample) init_states |= DF_WITH_RESAMPLE;
 
-	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk);
+	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk, dev_id);
 
 	PubHub* hub = new PubHub;
 	pthread_mutex_init(&hub->mtx, NULL);
