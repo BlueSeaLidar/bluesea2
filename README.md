@@ -11,6 +11,8 @@ How to run Lanhai ros node (Serial Port Version)
 1) Copy UDEV rule file : sudo cp src/LHLiDAR.rules /etc/udev/rules.d/
 2) or Run : sudo chmod 666 /dev/ttyUSB0 # make usb serial port readable
 
+
+
 ## if your lidar model is LDS-50C-2 :
 * rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=true _output_cloud:=true _with_resample:=true _resample_res:=0.5 _unit_is_mm:=true _with_confidence:=true
 * or use roslaunch src/bluesea/launch/LDS-50C-2.launch
@@ -34,11 +36,14 @@ How to run Lanhai ros node (UDP Network Version)
 3) optional : rostopic hz /scan
 4) optional : rosrun rviz rviz # 
 
+## if your lidar model is LDS-50C-E :
+* use roslaunch src/bluesea/launch/LDS-50C-E.launch
 
 
 Parameters
 =====================================================================
-* std::string type; // LiDAR comm type, could be "uart" or "udp"
+* std::string type; // LiDAR comm type, could be "uart", "tcp" or "udp"
+* std::string platform; // LiDAR hardware platform
 * std::string dump;	// file path of dump raw data, for debug
 
 // for serial port comm
