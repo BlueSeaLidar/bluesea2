@@ -48,6 +48,13 @@ struct RawDataHdr7 {
 	uint32_t dev_id;
 };
 
+typedef struct  {
+	uint16_t code;
+	uint16_t len;
+	uint32_t clk;
+	uint32_t dev_id;
+} PacketUart;
+
 struct FanSegment
 {
 	RawDataHdr7 hdr; 
@@ -681,7 +688,20 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 
 	uint8_t type = buf[0];
 
-	if (type == 0xCE)
+	if (buf[1] == 0xfa && buf[0] == 0x88) 
+	{ 
+		PacketUart hdr;
+		memcpy(&hdr, buf, sizeof(PacketUart));
+		if (len >= hdr.len + sizeof(PacketUart) )
+		{
+			if (parser->dev_id != ANYONE && hdr.dev_id != parser->dev_id) { 
+				// not my data
+				return 0;
+		       	}
+			return ParserRunStream(hP, hdr.len, buf+sizeof(PacketUart), fans);
+		}
+	}
+	else if (type == 0xCE)
 	{
 		RawDataHdr hdr;
 		memcpy(&hdr, buf, HDR_SIZE); 
