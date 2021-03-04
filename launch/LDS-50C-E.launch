@@ -2,14 +2,17 @@
  <group ns="lidar1">
   <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
     <param name="type" value="udp" />
+    <param name="platform" value="LDS-50C-E" />
     <param name="lidar_port" value="6543" />
-    <param name="local_port" value="6666" />
-    <param name="lidar_ip" value="192.168.0.102" />
+    <param name="local_port" value="6662" />
+    <param name="lidar_ip" value="192.168.0.111" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
     <param name="output_360" value="true" />
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="false"/>
+    <param name="with_smooth" value="true" />
+    <param name="with_deshadow" value="true" />
     <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-2.2"/>
     <param name="max_angle" value="2.2"/>
@@ -23,6 +26,9 @@
   </node>
  </group>
 </launch>
+
+
+
 
 
 
