@@ -41,6 +41,11 @@ struct UDPInfo
 	char group_ip[32];
 	pthread_t thr;
 };
+
+struct KeepAlive {
+	uint32_t clock;
+	uint32_t reserved[7];
+};
 	
 // CRC32
 unsigned int stm32crc(unsigned int *ptr, unsigned int len)
@@ -72,10 +77,12 @@ unsigned int stm32crc(unsigned int *ptr, unsigned int len)
 	return crc32;
 }
 
+
+
 // 
-bool send_cmd_udp(int fd_udp, const char* dev_ip, int dev_port,
+bool send_cmd_udp_f(int fd_udp, const char* dev_ip, int dev_port,
 	       	int cmd, int sn, 
-		int len, const char* snd_buf)
+		int len, const void* snd_buf, bool bpr)
 {
 	char buffer[2048];
 	CmdHeader* hdr = (CmdHeader*)buffer;
@@ -102,31 +109,49 @@ bool send_cmd_udp(int fd_udp, const char* dev_ip, int dev_port,
 
 	sendto(fd_udp, buffer, len2, 0, (struct sockaddr*)&to, sizeof(struct sockaddr));
 
-	char s[3096];
-	for (int i = 0; i < len2; i++) 
-		sprintf(s + 3 * i, "%02x ", (unsigned char)buffer[i]);
+	if (bpr) {
+		char s[3096];
+		for (int i = 0; i < len2; i++) 
+			sprintf(s + 3 * i, "%02x ", (unsigned char)buffer[i]);
 
-	printf("send to %s:%d 0x%04x sn[%d] L=%d : %s\n", 
-			dev_ip, dev_port, cmd, sn, len, s);
-
+		printf("send to %s:%d 0x%04x sn[%d] L=%d : %s\n", 
+				dev_ip, dev_port, cmd, sn, len, s);
+	}
 	return true;
 }
 
-// send_cmd_udp(g_udp_socket, dev_ip.c_str(), udp_port, 0x0043, rand(), 6, cmd);
+bool send_cmd_udp(int fd_udp, const char* dev_ip, int dev_port,
+	       	int cmd, int sn, 
+		int len, const void* snd_buf)
+{
+	return send_cmd_udp_f(fd_udp, dev_ip, dev_port, cmd, sn, len, snd_buf, true);
+}
+
+
+
 void* UdpThreadProc(void* p)
 {
 	UDPInfo* info = (UDPInfo*)p;
 
 	int fd_udp = info->fd_udp;
-	// acknowlege device 
-	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x4753, rand(), 0, NULL);
 
-	// start 
+	struct KeepAlive alive;
+	memset(&alive, 0, sizeof(alive));
+	alive.clock = time(NULL);
+
+	// acknowlege device 
+	//int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x4753, rand(), 0, NULL);
+	int rt = send_cmd_udp_f(info->fd_udp, info->lidar_ip, info->lidar_port, 
+			0x4b41, rand(), sizeof(alive), &alive, false);
+
+	// send requirement to lidar
 	char cmd[12] = "LGCPSH";
 	rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
 
 	RawData* fans[MAX_FANS];
 	char buf[1024];
+
+
 	while (1) 
 	{
 		fd_set fds;
@@ -161,6 +186,17 @@ void* UdpThreadProc(void* p)
 				//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
 				if (nfan > 0) {
 					PublishData(info->hPublish, nfan, fans);
+				}
+
+				uint32_t now = time(NULL);
+				if (now != alive.clock) 
+				{
+					alive.clock = now;
+					send_cmd_udp_f(info->fd_udp, 
+							info->lidar_ip, info->lidar_port, 
+							0x4b41, rand(), 
+							sizeof(alive), &alive, 
+							false);
 				}
 			}
 		}
