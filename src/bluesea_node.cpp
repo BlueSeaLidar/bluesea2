@@ -459,7 +459,7 @@ uint32_t get_device_ability(const std::string& platform)
 			DF_WITH_RESAMPLE |
 		       	DF_WITH_UUID;
 	}
-	else if (platform == "LDS-50C-S") 
+	else if (platform == "LDS-50C-2") 
 	{
 		return	DF_UNIT_IS_MM |
 		       	DF_WITH_INTENSITY |
@@ -530,19 +530,23 @@ int main(int argc, char **argv)
        	priv_nh.param("normal_size", normal_size, -1); // -1 : allow all packet, N : drop packets whose points less than N 
 	priv_nh.param("unit_is_mm", unit_is_mm, true); // 0 : distance is CM, 1: MM
        	priv_nh.param("with_confidence", with_confidence, true); // 
-       	priv_nh.param("with_checksum", with_chk, true); // 1 : enable packet checksum
+       	priv_nh.param("with_checksum", with_chk, true); // true : enable packet checksum
 
+
+	bool with_smooth, with_deshadow;
+       	priv_nh.param("with_smooth", with_smooth, true); //lidar data smooth filter
+       	priv_nh.param("with_deshadow", with_deshadow, true); //data shadow filter
 
 	// angle composate
-	bool hard_resample, soft_resample;
+	bool hard_resample, with_soft_resample;
        	priv_nh.param("hard_resample", hard_resample, true); // resample angle resolution
-       	priv_nh.param("soft_resample", soft_resample, true); // resample angle resolution
+       	priv_nh.param("soft_resample", with_soft_resample, true); // resample angle resolution
 	double resample_res;
        	priv_nh.param("resample_res", resample_res, 0.5); // resample angle resolution @ 0.5 degree 
 	//int angle_patch;
        	//priv_nh.param("angle_patch", angle_patch, 1); // make points number of every fans to unique
 	if (resample_res < 0.05 || resample_res > 1) {
-		soft_resample = false;
+		with_soft_resample = false;
 		hard_resample = false;
 	}
 
@@ -605,6 +609,8 @@ int main(int argc, char **argv)
 	if (unit_is_mm) init_states |= DF_UNIT_IS_MM;
 	if (with_confidence) init_states |= DF_WITH_INTENSITY;
 	if (hard_resample) init_states |= DF_WITH_RESAMPLE;
+	if (with_smooth) init_states |= DF_SMOOTHED;
+	if (with_deshadow) init_states |= DF_DESHADOWED;
 
 	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk, dev_id);
 
@@ -640,7 +646,7 @@ int main(int argc, char **argv)
 
 		if (!output_360) 
 		{
-			if (GetFan(hub, soft_resample, resample_res, fans)) 
+			if (GetFan(hub, with_soft_resample, resample_res, fans)) 
 		       	{
 				if (output_scan) 
 				       PublishLaserScan(laser_pub, fans[0], frame_id, max_dist);
@@ -653,7 +659,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			int n = GetAllFans(hub, soft_resample, resample_res, fans);
+			int n = GetAllFans(hub, with_soft_resample, resample_res, fans);
 			if (n > 0)
 			{ 
 				if (output_scan) {
