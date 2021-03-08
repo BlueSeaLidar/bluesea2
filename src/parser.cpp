@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 #include "parser.h"
 
 #define HDR_SIZE 6
@@ -299,6 +300,12 @@ static int GetFanPointCount(FanSegment* seg)
 static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pdat)
 {
 	if (parser->dev_id != ANYONE && hdr.dev_id != parser->dev_id) { 
+		static time_t last = 0;
+		time_t t = time(NULL);
+		if (t > last) {
+			printf("device id [%d] != my id [%d]\n", hdr.dev_id, parser->dev_id);
+			last = t;
+		}
 		// not my data
 		return NULL;
 	}
@@ -320,6 +327,7 @@ static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pda
 			while (seg) {
 				parser->fan_segs = seg->next;
 				delete seg;
+				seg = parser->fan_segs;
 			}
 			parser->fan_segs = fan_seg;
 		} else {
@@ -351,9 +359,18 @@ static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pda
 	if (N >= parser->fan_segs->hdr.whole_fan) 
 	{
 		RawData* dat = NULL;
+
+		
 		if (N == parser->fan_segs->hdr.whole_fan) 
-		{
-			dat = PackFanData( parser->fan_segs);
+		{ 
+			if (N > sizeof(dat->points)/sizeof(dat->points[0]) ) 
+			{
+				printf("too many %d points in 1 fan\n", N);
+			}
+			else
+			{
+				dat = PackFanData( parser->fan_segs);
+			}
 		}
 
 		// remove segments
@@ -677,7 +694,7 @@ int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[])
 		memcpy(parser->rest_buf, buf+used, parser->rest_len);
 	}
 
-	delete buf;
+	delete[] buf;
 
 	return nfan;
 }
@@ -688,7 +705,10 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 
 	uint8_t type = buf[0];
 
-	if (buf[1] == 0xfa && buf[0] == 0x88) 
+	if (buf[1] != 0xfa) {
+		//printf("skip packet %x %x len\n", buf[0], buf[1]);
+	}
+	else if (buf[0] == 0x88) 
 	{ 
 		PacketUart hdr;
 		memcpy(&hdr, buf, sizeof(PacketUart));
@@ -786,6 +806,7 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 			fans[0] = fan;
 			return 1;
 		}
+		return 0;
 	}
 
 
