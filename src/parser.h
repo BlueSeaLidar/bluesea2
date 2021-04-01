@@ -13,7 +13,8 @@
 
 #define MAX_POINTS 1000
 
-#define ANYONE 0x1234abcd
+//#define ANYONE 0x1234abcd
+#define ANYONE -1
 
 struct DataPoint
 {
