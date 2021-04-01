@@ -42,9 +42,13 @@ struct UDPInfo
 	pthread_t thr;
 };
 
+
 struct KeepAlive {
-	uint32_t clock;
-	uint32_t reserved[7];
+	uint32_t world_clock;
+	uint32_t mcu_hz;
+	uint32_t arrive;
+	uint32_t delay;
+	uint32_t reserved[4];
 };
 	
 // CRC32
@@ -135,22 +139,20 @@ void* UdpThreadProc(void* p)
 
 	int fd_udp = info->fd_udp;
 
-	struct KeepAlive alive;
-	memset(&alive, 0, sizeof(alive));
-	alive.clock = time(NULL);
-
-	// acknowlege device 
-	//int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x4753, rand(), 0, NULL);
-	int rt = send_cmd_udp_f(info->fd_udp, info->lidar_ip, info->lidar_port, 
-			0x4b41, rand(), sizeof(alive), &alive, false);
-
+	
 	// send requirement to lidar
 	char cmd[12] = "LGCPSH";
-	rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
+	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
 
 	RawData* fans[MAX_FANS];
 	char buf[1024];
 
+	timeval tv;
+	gettimeofday(&tv, NULL);
+
+	time_t tto = tv.tv_sec + 1;
+
+	uint32_t delay = 0;
 
 	while (1) 
 	{
@@ -159,7 +161,7 @@ void* UdpThreadProc(void* p)
 
 		FD_SET(fd_udp, &fds); 
 	
-		struct timeval to = { 5, 5 }; 
+		struct timeval to = { 1, 5 }; 
 		int ret = select(fd_udp+1, &fds, NULL, NULL, &to); 
 
 		if (ret == 0) {
@@ -172,6 +174,8 @@ void* UdpThreadProc(void* p)
 			continue;
 	       	}
 
+		gettimeofday(&tv, NULL);
+
 		// read UDP data
 		if (FD_ISSET(fd_udp, &fds)) 
 		{ 
@@ -180,26 +184,44 @@ void* UdpThreadProc(void* p)
 
 			int nr = recvfrom(fd_udp, buf, sizeof(buf), 0, (struct sockaddr *)&addr, &sz);
 			if (nr > 0) {
-				//printf("udp %02x%02x\n", buf[0], buf[1]);
-				int nfan = ParserRun(info->hParser, nr, (uint8_t*)buf, &(fans[0]));
-				//for (int i=0; i<nfan; i++)
-				//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
-				if (nfan > 0) {
-					PublishData(info->hPublish, nfan, fans);
-				}
-
-				uint32_t now = time(NULL);
-				if (now != alive.clock) 
+				if (buf[0] == 0x4c && buf[1] == 0x48 && buf[2] == ~0x41 && buf[3] == ~0x4b) 
 				{
-					alive.clock = now;
-					send_cmd_udp_f(info->fd_udp, 
-							info->lidar_ip, info->lidar_port, 
-							0x4b41, rand(), 
-							sizeof(alive), &alive, 
-							false);
+					if (nr == sizeof(KeepAlive)+12) 
+					{
+						uint32_t clock = (tv.tv_sec % 3600) * 10000 + tv.tv_usec/100;
+						KeepAlive* ka = (KeepAlive*)(buf+8);
+						if (clock > ka->world_clock) 
+							delay = clock - ka->world_clock;
+						else	
+							delay = clock + 36000000 - ka->world_clock;
+					}
+				} else {
+					//printf("udp %02x%02x\n", buf[0], buf[1]);
+					int nfan = ParserRun(info->hParser, nr, (uint8_t*)buf, &(fans[0]));
+					//for (int i=0; i<nfan; i++)
+					//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
+					if (nfan > 0) {
+						PublishData(info->hPublish, nfan, fans);
+					}
 				}
 			}
 		}
+
+		if (tv.tv_sec > tto) 
+		{
+			KeepAlive alive;
+			gettimeofday(&tv, NULL);
+			alive.world_clock = (tv.tv_sec % 3600) * 10000 + tv.tv_usec/100;
+			alive.delay = delay;
+
+			// acknowlege device 
+			//int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x4753, rand(), 0, NULL);
+			send_cmd_udp_f(info->fd_udp, info->lidar_ip, info->lidar_port, 0x4b41, rand(), sizeof(alive), &alive, false);
+
+			tto = tv.tv_sec + 1;
+		}
+
+
 	}
 	return NULL;
 }
