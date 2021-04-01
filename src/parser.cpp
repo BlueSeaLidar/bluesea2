@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <sys/time.h>
 #include <time.h>
 #include "parser.h"
 
@@ -90,8 +91,9 @@ struct Parser
 
 short LidarAng2ROS(short ang)
 {
-	ang = -ang;
-	return ang < -1800 ? ang + 3600 : ang;
+	//ang = -ang;
+	//return ang < -1800 ? ang + 3600 : ang;
+	return ang >= 1800 ? ang - 3600 : ang;
 }
 
 static uint32_t update_flags(unsigned char* buf)
@@ -254,6 +256,22 @@ static FanSegment* GetFanSegment(const RawDataHdr7& hdr, uint8_t* pdat, bool wit
 	return fan_seg;
 }
 
+void DecTimestamp(uint32_t ts, uint32_t* ts2)
+{	
+	timeval tv;
+	gettimeofday(&tv, NULL);
+
+	uint32_t sec = tv.tv_sec % 3600;
+	if (sec < 5 && ts/10000 > 3595)
+	{
+		ts2[0] = (tv.tv_sec / 3600 -1) * 3600 + ts/10000;
+	}
+	else {
+		ts2[0] = (tv.tv_sec / 3600) * 3600 + ts/10000;
+	}
+
+	ts2[1] = (ts%10000)*10000;
+}
 
 static RawData* PackFanData(FanSegment* seg)
 {
@@ -272,6 +290,9 @@ static RawData* PackFanData(FanSegment* seg)
 	dat->last = 0;
 	dat->fend = 0;
 
+	DecTimestamp(seg->hdr.timestamp, dat->ts);
+	//printf("%d %d.%d\n", dat->angle, dat->ts[0], dat->ts[1]);
+
 	int count = 0;
 	while (seg) 
 	{
@@ -279,7 +300,7 @@ static RawData* PackFanData(FanSegment* seg)
 		{
 			dat->points[count].confidence = seg->energy[i];
 			dat->points[count].distance = seg->dist[i];
-			dat->points[count].degree = (seg->angle[i] + seg->hdr.beg_ang) / 100.0;
+			dat->points[count].degree = (seg->angle[i] + seg->hdr.beg_ang) / 1000.0;
 		}
 	
 		seg = seg->next;
@@ -359,7 +380,6 @@ static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pda
 	if (N >= parser->fan_segs->hdr.whole_fan) 
 	{
 		RawData* dat = NULL;
-
 		
 		if (N == parser->fan_segs->hdr.whole_fan) 
 		{ 
@@ -382,7 +402,7 @@ static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pda
 		}
 
 		if (dat) {
-			SetTimeStamp(dat);
+			//SetTimeStamp(dat, );
 		       	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 		}
 		
