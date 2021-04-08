@@ -87,14 +87,14 @@ struct Parser
 	FanSegment* fan_segs;
 };
 
-
-
+#if 0
 short LidarAng2ROS(short ang)
 {
 	//ang = -ang;
 	//return ang < -1800 ? ang + 3600 : ang;
 	return ang >= 1800 ? ang - 3600 : ang;
 }
+#endif
 
 static uint32_t update_flags(unsigned char* buf)
 {
@@ -158,7 +158,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 		return NULL;
 	}
 
-	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	//dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 
 					
 	SetTimeStamp(dat);
@@ -207,7 +207,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	//printf("get3 %d(%d)\n", hdr.angle, hdr.N);
 	
 	SetTimeStamp(dat);
-	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	//dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
 
@@ -403,7 +403,7 @@ static RawData* GetData0xC7(Parser* parser, const RawDataHdr7& hdr, uint8_t* pda
 
 		if (dat) {
 			//SetTimeStamp(dat, );
-		       	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+		       	//dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 		}
 		
 		return dat;
@@ -451,7 +451,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, bool wi
 	//printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
 
 	SetTimeStamp(dat);
-	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	//dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
 
@@ -498,7 +498,7 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, bool wi
 	//printf("get DF %d=%d %d %d\n", hdr.angle, hdr.first, hdr.N, hdr.span);
 
 	SetTimeStamp(dat);
-	dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	//dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 
 }
