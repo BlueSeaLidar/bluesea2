@@ -224,15 +224,21 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 }
 
 
-
-short LidarAng2ROS(short ang);
-
 void SetTimeStamp(RawData* dat) 
 {
 	ros::Time t = ros::Time::now();
 	dat->ts[0] = t.sec;
 	dat->ts[1] = t.nsec;
 }
+
+
+double ROSAng(double ang)
+{
+	ang = -ang;
+	return ang < -180 ? ang + 360 : ang;
+	//return ang < 180 ? ang : ang - 360;
+}
+
 
 void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan, std::string& frame_id, double max_dist, bool inverted)
 {
@@ -255,46 +261,28 @@ void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan, std::string& f
 	msg.ranges.resize(fan->N);
 
 	if (inverted) {
-		msg.angle_min = LidarAng2ROS(fan->angle) * M_PI/1800; 
+		msg.angle_min = ROSAng(fan->angle/10)*10 * M_PI/1800; 
 		msg.angle_max = msg.angle_min + fan->span * M_PI/1800; 
 		msg.angle_increment = (fan->span * M_PI/1800) / fan->N;
-
-		for (int i=fan->N-1; i>=0; i--)
-		{
-			double d = fan->points[i].distance/1000.0;
-			if (fan->points[i].distance == 0 || d > max_dist) 
-				msg.ranges[i] = std::numeric_limits<float>::infinity();
-			else
-				msg.ranges[i] = d;
-
-			msg.intensities[i] = fan->points[i].confidence;
-		} 
 	} else {
-
-		msg.angle_min = LidarAng2ROS(fan->angle) * M_PI/1800; 
+		msg.angle_min = ROSAng(fan->angle/10)*10 * M_PI/1800; 
 		msg.angle_max = msg.angle_min - fan->span * M_PI/1800; 
 		msg.angle_increment = -(fan->span * M_PI/1800) / fan->N;
+	}
 
-		for (int i=0; i<fan->N; i++)
-		{
-			double d = fan->points[i].distance/1000.0;
-			if (fan->points[i].distance == 0 || d > max_dist) 
-				msg.ranges[i] = std::numeric_limits<float>::infinity();
-			else
-				msg.ranges[i] = d;
+	for (int i=0; i<fan->N; i++)
+	{
+		double d = fan->points[i].distance/1000.0;
+		if (fan->points[i].distance == 0 || d > max_dist) 
+			msg.ranges[i] = std::numeric_limits<float>::infinity();
+		else
+			msg.ranges[i] = d;
 
-			msg.intensities[i] = fan->points[i].confidence;
-		}
+		msg.intensities[i] = fan->points[i].confidence;
 	}
 	laser_pub.publish(msg); 
 }
 
-double ROSAng(double ang)
-{
-	//ang = -ang;
-	//return ang < -180 ? ang + 360 : ang;
-	return ang < 180 ? ang : ang - 360;
-}
 
 
 int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
@@ -304,9 +292,9 @@ int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
 	{
 		for (int i=fans[j]->N-1; i>=0; i--, cnt++) 
 		{
-			//printf("ang %f\n", fans[j]->points[i].degree);
 			if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
 			if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+			//printf("ang %f\n", fans[j]->points[i].degree);
 			N++;
 		}
 	}
@@ -415,41 +403,21 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	N = 0;
 	for (int j=0; j<nfan; j++) 
 	{
-		if (inverted) {
-			for (int i=fans[j]->N-1; i>=0; i--) 
-			{
-				if (with_filter) {
-					if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
-					if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
-				}
-
-				double d = fans[j]->points[i].distance/1000.0;
-				if (fans[j]->points[i].distance == 0 || d > max_dist) 
-					msg.ranges[N] = std::numeric_limits<float>::infinity();
-				else
-					msg.ranges[N] = d;
-
-				msg.intensities[N] = fans[j]->points[i].confidence;
-				N++;
+		for (int i=0; i<fans[j]->N; i++) 
+		{
+			if (with_filter) {
+				if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
+				if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
 			}
-		}
-		else {
-			for (int i=0; i<fans[j]->N; i++) 
-			{
-				if (with_filter) {
-					if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
-					if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
-				}
 
-				double d = fans[j]->points[i].distance/1000.0;
-				if (fans[j]->points[i].distance == 0 || d > max_dist) 
-					msg.ranges[N] = std::numeric_limits<float>::infinity();
-				else
-					msg.ranges[N] = d;
+			double d = fans[j]->points[i].distance/1000.0;
+			if (fans[j]->points[i].distance == 0 || d > max_dist) 
+				msg.ranges[N] = std::numeric_limits<float>::infinity();
+			else
+				msg.ranges[N] = d;
 
-				msg.intensities[N] = fans[j]->points[i].confidence;
-				N++;
-			}
+			msg.intensities[N] = fans[j]->points[i].confidence;
+			N++;
 		}
 	} 
 	laser_pub.publish(msg); 
