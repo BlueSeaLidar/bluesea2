@@ -35,7 +35,7 @@ struct RawData
 	unsigned short first;
 	unsigned short last;
 	unsigned short fend;
-	short ros_angle;	// 0.1 degree
+	// short ros_angle;	// 0.1 degree
 	DataPoint points[MAX_POINTS];
 	uint32_t ts[2];
 
