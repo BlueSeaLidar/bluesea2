@@ -2,6 +2,7 @@
  <group ns="lidar1">
   <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
     <param name="type" value="udp" />
+    <param name="platform" value="LDS-50C-S" />
     <param name="lidar_port" value="5000" />
     <param name="lidar_ip" value="192.168.158.91" />
     <param name="group_ip" value="224.1.1.99" />
