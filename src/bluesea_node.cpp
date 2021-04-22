@@ -512,8 +512,7 @@ uint32_t get_device_ability(const std::string& platform)
 {
 	if (platform == "LDS-50C-E") 
 	{
-		return	DF_UNIT_IS_MM |
-		       	DF_WITH_INTENSITY |
+		return	//DF_UNIT_IS_MM | DF_WITH_INTENSITY |
 		       	DF_DESHADOWED	|
 		       	DF_SMOOTHED |	
 			DF_WITH_RESAMPLE |
