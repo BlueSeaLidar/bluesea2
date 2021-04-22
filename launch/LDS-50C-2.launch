@@ -3,8 +3,8 @@
   <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
     <param name="type" value="uart" />
     <param name="port" value="/dev/ttyUSB0" />
-    <rosparam param="rate_list">[256000, 384000, 500000, 768000, 921600 ]</rosparam>
-    <param name="baud_rate" value="-1" />
+    <rosparam param="rate_list">[ 500000, 768000, 921600 ]</rosparam>
+    <param name="baud_rate" value="500000" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
     <param name="output_360" value="true" />
