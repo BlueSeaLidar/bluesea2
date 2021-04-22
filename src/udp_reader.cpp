@@ -132,6 +132,69 @@ bool send_cmd_udp(int fd_udp, const char* dev_ip, int dev_port,
 }
 
 
+bool udp_talk(void* hnd,
+	       	int n, const char* cmd, 
+		int nhdr, const char* hdr_str, 
+		int nfetch, char* fetch)
+{
+	UDPInfo* info = (UDPInfo*)hnd;
+	int fd_udp = info->fd_udp;
+
+	printf("send command : \'%s\' \n", cmd);
+
+	unsigned short sn = rand();
+	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, sn, n, cmd);
+
+	int nr = 0;
+	for (int i=0; i<100; i++)
+	{
+		fd_set fds;
+		FD_ZERO(&fds); 
+
+		FD_SET(fd_udp, &fds); 
+	
+		struct timeval to = { 1, 0 }; 
+		int ret = select(fd_udp+1, &fds, NULL, NULL, &to); 
+
+		if (ret <= 0) {
+			return false;
+		}
+		
+		// read UDP data
+		if (FD_ISSET(fd_udp, &fds)) 
+		{ 
+			nr++;
+			sockaddr_in addr;
+			socklen_t sz = sizeof(addr);
+	
+			char buf[1024] = {0};
+			int nr = recvfrom(fd_udp, buf, sizeof(buf), 0, (struct sockaddr *)&addr, &sz);
+			if (nr > 0) 
+			{	
+				CmdHeader* hdr = (CmdHeader*)buf;
+				if (hdr->sign != 0x484c || hdr->sn != sn) continue;
+					
+				for (int i=0; i<nr-nhdr-nfetch; i++) 
+				{
+					if (memcmp(buf+i, hdr_str, nhdr) == 0) 
+					{ 
+						memcpy(fetch, buf+i+nhdr, nfetch);
+					       	fetch[nfetch] = 0;
+					       	return true;
+				       	}
+			       	}
+
+				memcpy(fetch, "ok", 2);
+				fetch[2] = 0;
+				return true;
+			}
+		}
+	}
+
+	printf("read %d packets, not response\n", nr);
+	return false;
+}
+
 
 void* UdpThreadProc(void* p)
 {
@@ -141,7 +204,7 @@ void* UdpThreadProc(void* p)
 
 	
 	// send requirement to lidar
-	char cmd[12] = "LGCPSH";
+	char cmd[12] = "LUUIDH";
 	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
 
 	RawData* fans[MAX_FANS];
@@ -153,6 +216,8 @@ void* UdpThreadProc(void* p)
 	time_t tto = tv.tv_sec + 1;
 
 	uint32_t delay = 0;
+
+	ParserScript(info->hParser, udp_talk, info);
 
 	while (1) 
 	{
