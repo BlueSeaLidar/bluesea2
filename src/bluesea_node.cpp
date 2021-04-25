@@ -231,59 +231,12 @@ void SetTimeStamp(RawData* dat)
 	dat->ts[1] = t.nsec;
 }
 
-
 double ROSAng(double ang)
 {
 	ang = -ang;
 	return ang < -180 ? ang + 360 : ang;
 	//return ang < 180 ? ang : ang - 360;
 }
-
-
-void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan, std::string& frame_id, double max_dist, bool inverted)
-{
-	sensor_msgs::LaserScan msg;
-
-	//msg.header.stamp = ros::Time::now();
-	msg.header.stamp.sec = fan->ts[0];
-	msg.header.stamp.nsec = fan->ts[1];
-	
-       	msg.header.frame_id = frame_id;
-
-	double scan_time = 1/100.;
-	msg.scan_time = scan_time;
-	msg.time_increment = scan_time / fan->N;
-
-	msg.range_min = 0.; 
-	msg.range_max = max_dist;//8.0; 
-
-	msg.intensities.resize(fan->N); 
-	msg.ranges.resize(fan->N);
-
-	if (inverted) {
-		msg.angle_min = ROSAng(fan->angle/10)*10 * M_PI/1800; 
-		msg.angle_max = msg.angle_min + fan->span * M_PI/1800; 
-		msg.angle_increment = (fan->span * M_PI/1800) / fan->N;
-	} else {
-		msg.angle_min = ROSAng(fan->angle/10)*10 * M_PI/1800; 
-		msg.angle_max = msg.angle_min - fan->span * M_PI/1800; 
-		msg.angle_increment = -(fan->span * M_PI/1800) / fan->N;
-	}
-
-	for (int i=0; i<fan->N; i++)
-	{
-		double d = fan->points[i].distance/1000.0;
-		if (fan->points[i].distance == 0 || d > max_dist) 
-			msg.ranges[i] = std::numeric_limits<float>::infinity();
-		else
-			msg.ranges[i] = d;
-
-		msg.intensities[i] = fan->points[i].confidence;
-	}
-	laser_pub.publish(msg); 
-}
-
-
 
 int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
 {
@@ -301,6 +254,78 @@ int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
 	//printf("angle filter %d to %d, [%f, %f]\n", cnt, N, min_deg, max_deg);
 	return N;
 }
+void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan, 
+		std::string& frame_id, 
+		double max_dist, 
+		bool with_filter, double min_ang, double max_ang,
+		bool inverted)
+{
+	double min_deg = min_ang * 180 / M_PI;
+	double max_deg = max_ang * 180 / M_PI;
+	int N = fan->N;
+
+	if (with_filter) 
+	{
+		N = GetCount(1, &fan, min_deg, max_deg);
+		if (N < 2) return;
+	}
+
+	sensor_msgs::LaserScan msg;
+
+	//msg.header.stamp = ros::Time::now();
+	msg.header.stamp.sec = fan->ts[0];
+	msg.header.stamp.nsec = fan->ts[1];
+	
+	msg.header.frame_id = frame_id;
+
+	double scan_time = 1/100.;
+	msg.scan_time = scan_time;
+	msg.time_increment = scan_time / fan->N;
+
+	msg.range_min = 0.; 
+	msg.range_max = max_dist;//8.0; 
+
+	msg.intensities.resize(N);//fan->N); 
+	msg.ranges.resize(N);//fan->N);
+
+	if (inverted) {
+		msg.angle_min = ROSAng(fan->angle/10)*10 * M_PI/1800; 
+		msg.angle_max = msg.angle_min + fan->span * M_PI/1800; 
+		msg.angle_increment = (fan->span * M_PI/1800) / fan->N;
+		if (with_filter) {
+			if (msg.angle_min < min_ang) msg.angle_min = min_ang;
+			if (msg.angle_max > max_ang) msg.angle_max = max_ang;
+		} 
+	} else {
+		msg.angle_min = ROSAng(fan->angle/10)*10 * M_PI/1800; 
+		msg.angle_max = msg.angle_min - fan->span * M_PI/1800; 
+		msg.angle_increment = -(fan->span * M_PI/1800) / fan->N;
+		if (with_filter) {
+			if (msg.angle_min > max_ang) msg.angle_min = max_ang;
+			if (msg.angle_max < min_ang) msg.angle_max = min_ang;
+		}
+	}
+
+	N = 0;
+	for (int i=0; i<fan->N; i++)
+	{
+		if (with_filter) {
+			if (ROSAng(fan->points[i].degree) < min_deg) continue;
+			if (ROSAng(fan->points[i].degree) > max_deg) continue;
+		}
+
+		double d = fan->points[i].distance/1000.0;
+		if (fan->points[i].distance == 0 || d > max_dist) 
+			msg.ranges[N] = std::numeric_limits<float>::infinity();
+		else
+			msg.ranges[N] = d;
+
+		msg.intensities[N] = fan->points[i].confidence;
+		N++;
+	}
+	laser_pub.publish(msg); 
+}
+
 
 int time_cmp(const uint32_t* t1, const uint32_t* t2)
 {
@@ -331,7 +356,7 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 
 	for (int i=0; i<nfan; i++) 
 	{
-	       	N += fans[i]->N;
+		N += fans[i]->N;
 
 		if (time_cmp(mx, fans[i]->ts) < 0) {
 			mx[0] = fans[i]->ts[0];
@@ -363,7 +388,7 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	last_ns = msg.header.stamp.nsec;
 #endif
 	
-       	msg.header.frame_id = frame_id;
+	msg.header.frame_id = frame_id;
 
 	double min_deg = min_ang * 180 / M_PI;
 	double max_deg = max_ang * 180 / M_PI;
@@ -709,10 +734,14 @@ int main(int argc, char **argv)
 		if (!output_360) 
 		{
 			if (GetFan(hub, with_soft_resample, resample_res, fans)) 
-		       	{
+			{
 				if (output_scan) 
-				       PublishLaserScanFan(laser_pub, fans[0], frame_id, max_dist, inverted);
-				//printf("free %x\n", fans[0]);
+				{
+				    PublishLaserScanFan(laser_pub, fans[0], frame_id, max_dist, 
+						       with_angle_filter, min_angle, max_angle, 
+							   inverted);
+					//printf("free %x\n", fans[0]);
+				}
 				delete fans[0];
 			}
 			else {
