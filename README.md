@@ -76,7 +76,7 @@ Parameters
 * int normal_size; // abnormal packet (points number < normal_size) will be droped
 
 // angle filter
-* int with_angle_filter ; // 1: enable angle filter, 0: diable
+* bool with_angle_filter ; // true: enable angle filter, false: diable
 * double min_angle; // angle filter's low threshold, default value: -pi
 * double max_angle; // angle filters' up threashold, default value: pi
 
