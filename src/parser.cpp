@@ -270,7 +270,7 @@ void DecTimestamp(uint32_t ts, uint32_t* ts2)
 		ts2[0] = (tv.tv_sec / 3600) * 3600 + ts/1000;
 	}
 
-	ts2[1] = (ts%1000)*1000;
+	ts2[1] = (ts%1000)*1000000;
 }
 
 static RawData* PackFanData(FanSegment* seg)
