@@ -253,7 +253,7 @@ void* UdpThreadProc(void* p)
 				{
 					if (nr == sizeof(KeepAlive)+12) 
 					{
-						uint32_t clock = (tv.tv_sec % 3600) * 10000 + tv.tv_usec/100;
+						uint32_t clock = (tv.tv_sec % 3600) * 1000 + tv.tv_usec/1000;
 						KeepAlive* ka = (KeepAlive*)(buf+8);
 						if (clock > ka->world_clock) 
 							delay = clock - ka->world_clock;
@@ -276,7 +276,7 @@ void* UdpThreadProc(void* p)
 		{
 			KeepAlive alive;
 			gettimeofday(&tv, NULL);
-			alive.world_clock = (tv.tv_sec % 3600) * 10000 + tv.tv_usec/100;
+			alive.world_clock = (tv.tv_sec % 3600) * 1000 + tv.tv_usec/1000;
 			alive.delay = delay;
 
 			// acknowlege device 
