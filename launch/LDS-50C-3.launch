@@ -6,12 +6,13 @@
     <param name="port" value="/dev/ttyUSB0" />
     <rosparam param="rate_list">[ 500000, 768000, 921600 ]</rosparam>
     <param name="baud_rate" value="768000" />
+    <param name="max_dist" value="50.0"/>
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
     <param name="output_360" value="true" />
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="false"/>
-    <param name="with_angle_filter" value="true"/>
+    <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-2.2"/>
     <param name="max_angle" value="2.2"/>
     <param name="max_dist" value="50.0"/>

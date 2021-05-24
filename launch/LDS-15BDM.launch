@@ -5,6 +5,7 @@
     <param name="port" value="/dev/ttyUSB0" />
     <param name="frame_id" value="map" />
     <param name="baud_rate" value="230400" />
+    <param name="max_dist" value="15.0"/>
     <rosparam param="rate_list">[230400,256000 ]</rosparam>
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="true"/>
