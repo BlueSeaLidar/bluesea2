@@ -254,11 +254,12 @@ int GetCount(int nfan, RawData** fans, double min_deg, double max_deg)
 	//printf("angle filter %d to %d, [%f, %f]\n", cnt, N, min_deg, max_deg);
 	return N;
 }
+
 void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan, 
 		std::string& frame_id, 
 		double max_dist, 
 		bool with_filter, double min_ang, double max_ang,
-		bool inverted)
+		bool inverted, bool reversed)
 {
 	double min_deg = min_ang * 180 / M_PI;
 	double max_deg = max_ang * 180 / M_PI;
@@ -307,21 +308,41 @@ void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan,
 	}
 
 	N = 0;
-	for (int i=0; i<fan->N; i++)
+	if (reversed) 
 	{
-		if (with_filter) {
-			if (ROSAng(fan->points[i].degree) < min_deg) continue;
-			if (ROSAng(fan->points[i].degree) > max_deg) continue;
+		for (int i=fan->N-1; i>=0; i--)
+		{
+			if (with_filter) {
+				if (ROSAng(fan->points[i].degree) < min_deg) continue;
+				if (ROSAng(fan->points[i].degree) > max_deg) continue;
+			}
+
+			double d = fan->points[i].distance/1000.0;
+			if (fan->points[i].distance == 0 || d > max_dist) 
+				msg.ranges[N] = std::numeric_limits<float>::infinity();
+			else
+				msg.ranges[N] = d;
+
+			msg.intensities[N] = fan->points[i].confidence;
+			N++;
 		}
+	} else {
+		for (int i=0; i<fan->N; i++)
+		{
+			if (with_filter) {
+				if (ROSAng(fan->points[i].degree) < min_deg) continue;
+				if (ROSAng(fan->points[i].degree) > max_deg) continue;
+			}
 
-		double d = fan->points[i].distance/1000.0;
-		if (fan->points[i].distance == 0 || d > max_dist) 
-			msg.ranges[N] = std::numeric_limits<float>::infinity();
-		else
-			msg.ranges[N] = d;
+			double d = fan->points[i].distance/1000.0;
+			if (fan->points[i].distance == 0 || d > max_dist) 
+				msg.ranges[N] = std::numeric_limits<float>::infinity();
+			else
+				msg.ranges[N] = d;
 
-		msg.intensities[N] = fan->points[i].confidence;
-		N++;
+			msg.intensities[N] = fan->points[i].confidence;
+			N++;
+		}
 	}
 	laser_pub.publish(msg); 
 }
@@ -345,7 +366,7 @@ int time_cmp(const uint32_t* t1, const uint32_t* t2)
 uint32_t last_ns = 0;
 void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, 
 		double max_dist, bool with_filter, double min_ang, double max_ang,
-		bool inverted)
+		bool inverted, bool reversed)
 {
 	sensor_msgs::LaserScan msg;
 
@@ -426,25 +447,49 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 	msg.ranges.resize(N);
 
 	N = 0;
-	for (int j=0; j<nfan; j++) 
+	if (reversed) 
 	{
-		for (int i=0; i<fans[j]->N; i++) 
+		for (int j=nfan-1; j>=0; j--) 
 		{
-			if (with_filter) {
-				if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
-				if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+			for (int i=fans[j]->N-1; i>=0; i--) 
+			{
+				if (with_filter) {
+					if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
+					if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+				}
+
+				double d = fans[j]->points[i].distance/1000.0;
+				if (fans[j]->points[i].distance == 0 || d > max_dist) 
+					msg.ranges[N] = std::numeric_limits<float>::infinity();
+				else
+					msg.ranges[N] = d;
+
+				msg.intensities[N] = fans[j]->points[i].confidence;
+				N++;
 			}
+		} 
+	}
+	else {
+		for (int j=0; j<nfan; j++) 
+		{
+			for (int i=0; i<fans[j]->N; i++) 
+			{
+				if (with_filter) {
+					if (ROSAng(fans[j]->points[i].degree) < min_deg) continue;
+					if (ROSAng(fans[j]->points[i].degree) > max_deg) continue;
+				}
 
-			double d = fans[j]->points[i].distance/1000.0;
-			if (fans[j]->points[i].distance == 0 || d > max_dist) 
-				msg.ranges[N] = std::numeric_limits<float>::infinity();
-			else
-				msg.ranges[N] = d;
+				double d = fans[j]->points[i].distance/1000.0;
+				if (fans[j]->points[i].distance == 0 || d > max_dist) 
+					msg.ranges[N] = std::numeric_limits<float>::infinity();
+				else
+					msg.ranges[N] = d;
 
-			msg.intensities[N] = fans[j]->points[i].confidence;
-			N++;
-		}
-	} 
+				msg.intensities[N] = fans[j]->points[i].confidence;
+				N++;
+			}
+		} 
+	}
 	laser_pub.publish(msg); 
 }
 
@@ -617,8 +662,9 @@ int main(int argc, char **argv)
        	priv_nh.param("with_checksum", with_chk, true); // true : enable packet checksum
 
 	// is lidar inverted
-	bool inverted;
+	bool inverted, reversed;
        	priv_nh.param("inverted", inverted, false); 
+       	priv_nh.param("reversed", reversed, false); 
 
 	bool with_smooth, with_deshadow;
        	priv_nh.param("with_smooth", with_smooth, true); //lidar data smooth filter
@@ -739,7 +785,7 @@ int main(int argc, char **argv)
 				{
 				    PublishLaserScanFan(laser_pub, fans[0], frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle, 
-							   inverted);
+							   inverted, reversed);
 					//printf("free %x\n", fans[0]);
 				}
 				delete fans[0];
@@ -753,13 +799,15 @@ int main(int argc, char **argv)
 			int n = GetAllFans(hub, with_soft_resample, resample_res, fans);
 			if (n > 0)
 			{ 
-				if (output_scan) {
+				if (output_scan) 
+				{
 				       PublishLaserScan(laser_pub, n, fans, frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle, 
-						       inverted);
+						       inverted, reversed);
 				}
 		
-				if (output_cloud) {
+				if (output_cloud) 
+				{
 				       PublishCloud(cloud_pub, n, fans, frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle);
 				}
