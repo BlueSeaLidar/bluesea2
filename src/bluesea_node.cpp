@@ -684,7 +684,7 @@ int main(int argc, char **argv)
 	}
 
 	// data output
-	bool output_scan, output_cloud, output_360;
+	bool output_scan = true, output_cloud = false, output_360 = true;
 	priv_nh.param("output_scan", output_scan, true); // true: enable output angle+distance mode, 0: disable
 	priv_nh.param("output_cloud", output_cloud, false); // false: enable output xyz format, 0 : disable
 	priv_nh.param("output_360", output_360, true); // true: packet data of 360 degree (multiple RawData), publish once
@@ -748,6 +748,7 @@ int main(int argc, char **argv)
 	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk, dev_id);
 
 	PubHub* hub = new PubHub;
+	hub->nfan = 0;
 	pthread_mutex_init(&hub->mtx, NULL);
 
 	if (g_type == "uart") 
@@ -775,7 +776,7 @@ int main(int argc, char **argv)
 	{ 
 		ros::spinOnce();
 		
-		RawData* fans[MAX_FANS];
+		RawData* fans[MAX_FANS] = {NULL};
 
 		if (!output_360) 
 		{
