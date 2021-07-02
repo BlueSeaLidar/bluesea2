@@ -604,6 +604,7 @@ uint32_t get_device_ability(const std::string& platform)
 	return 0;
 }
 
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "bluesea2_laser_publisher");
@@ -816,7 +817,7 @@ int main(int argc, char **argv)
 				for (int i=0; i<n; i++) delete fans[i];
 			}
 			else {
-			       	ros::Duration(0.001).sleep();
+			       	ros::Duration(0.05).sleep();
 			}
 		}
 	}
