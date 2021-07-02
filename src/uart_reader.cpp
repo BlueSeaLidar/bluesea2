@@ -217,7 +217,8 @@ int UartReader(UartInfo* info)
 
 		FD_SET(fd_uart, &fds); 
 	
-		struct timeval to = { 5, 1 };
+		struct timeval to = { 1, 500000 };
+				
 		int ret = select(fd_uart+1, &fds, NULL, NULL, &to); 
 
 		if (ret < 0) {
@@ -228,20 +229,21 @@ int UartReader(UartInfo* info)
 		// read UART data
 		if (FD_ISSET(fd_uart, &fds)) 
 		{
-			unsigned char buf[256];
+			unsigned char buf[512];
 			int nr = read(fd_uart, buf, sizeof(buf)); 
 			if (nr <= 0) {
 				printf("read port error %d\n",  nr);
 				break;
-			} else {
-				
-				int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
-				//for (int i=0; i<nfan; i++)
-				//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
-				if (nfan > 0) {
-					PublishData(info->hPublish, nfan, fans);
-				}
+			} 
+
+			int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
+			//for (int i=0; i<nfan; i++)
+			//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
+			if (nfan > 0) {
+				PublishData(info->hPublish, nfan, fans);
 			}
+			if (nr < sizeof(buf)-10) usleep(10000-nr*10);
+
 		}
 	}
 	return 0;
