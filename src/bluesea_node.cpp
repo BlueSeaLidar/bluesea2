@@ -259,7 +259,7 @@ void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan,
 		std::string& frame_id, 
 		double max_dist, 
 		bool with_filter, double min_ang, double max_ang,
-		bool inverted, bool reversed)
+		bool inverted, bool reversed, double zero_shift)
 {
 	double min_deg = min_ang * 180 / M_PI;
 	double max_deg = max_ang * 180 / M_PI;
@@ -286,6 +286,7 @@ void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan,
 	msg.range_min = 0.; 
 	msg.range_max = max_dist;//8.0; 
 
+
 	msg.intensities.resize(N);//fan->N); 
 	msg.ranges.resize(N);//fan->N);
 
@@ -306,6 +307,9 @@ void PublishLaserScanFan(ros::Publisher& laser_pub, RawData* fan,
 			if (msg.angle_max < min_ang) msg.angle_max = min_ang;
 		}
 	}
+
+	msg.angle_min += zero_shift;
+	msg.angle_max += zero_shift;
 
 	N = 0;
 	if (reversed) 
@@ -366,7 +370,7 @@ int time_cmp(const uint32_t* t1, const uint32_t* t2)
 uint32_t last_ns = 0;
 void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, 
 		double max_dist, bool with_filter, double min_ang, double max_ang,
-		bool inverted, bool reversed)
+		bool inverted, bool reversed, double zero_shift)
 {
 	sensor_msgs::LaserScan msg;
 
@@ -442,6 +446,10 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 			msg.angle_increment = -M_PI*2 / N;
 		}
 	}
+
+			
+	msg.angle_min += zero_shift;
+	msg.angle_max += zero_shift;
 
 	msg.intensities.resize(N); 
 	msg.ranges.resize(N);
@@ -667,6 +675,10 @@ int main(int argc, char **argv)
        	priv_nh.param("inverted", inverted, false); 
        	priv_nh.param("reversed", reversed, false); 
 
+	// zero position  
+	double zero_shift;
+	priv_nh.param("zero_shift", zero_shift, 0.0); 
+
 	bool with_smooth, with_deshadow;
        	priv_nh.param("with_smooth", with_smooth, true); //lidar data smooth filter
        	priv_nh.param("with_deshadow", with_deshadow, true); //data shadow filter
@@ -787,7 +799,7 @@ int main(int argc, char **argv)
 				{
 				    PublishLaserScanFan(laser_pub, fans[0], frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle, 
-							   inverted, reversed);
+							   inverted, reversed, zero_shift);
 					//printf("free %x\n", fans[0]);
 				}
 				delete fans[0];
@@ -805,7 +817,7 @@ int main(int argc, char **argv)
 				{
 				       PublishLaserScan(laser_pub, n, fans, frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle, 
-						       inverted, reversed);
+						       inverted, reversed, zero_shift);
 				}
 		
 				if (output_cloud) 
