@@ -583,7 +583,9 @@ static int MsgProc(Parser* parser, int len, unsigned char* buf)
 		parser->flags = update_flags(buf+2);
 	}
 	else {
-		printf("unkown %d bytes %02x %02x %02x %02x\n", len, buf[0], buf[1], buf[2], buf[3]);
+		printf("unknown %d bytes : %02x ", len, buf[0]);
+		for (int i=1; i<len && i<16; i++) printf("%02x ", buf[i]);
+		printf("\n");
 
 	}
 
@@ -938,6 +940,17 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 			fans[0] = fan;
 			return 1;
 		}
+		return 0;
+	}
+
+	
+	if (buf[0] == 0x4c && buf[1] == 0x48) {
+		// 
+		return 0;
+	}
+
+	if (memcmp(buf, "LMSG", 4) == 0) {
+		// LMSG
 		return 0;
 	}
 
