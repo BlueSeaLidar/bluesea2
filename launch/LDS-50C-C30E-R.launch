@@ -25,7 +25,7 @@
     <param name="with_checksum" value="true"/>
     <param name="inverted" value="true"/>
     <param name="reversed" value="false"/> 
-    <param name="zero_shift" value="-.033"/> 
+    <param name="zero_shift" value="-.03490658"/> 
   </node>
  </group>
 </launch>
