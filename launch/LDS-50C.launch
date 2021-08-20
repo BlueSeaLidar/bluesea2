@@ -2,6 +2,7 @@
  <group ns="lidar1">
   <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
     <param name="type" value="uart" />
+    <param name="platform" value="LDS-50C" />
     <param name="port" value="/dev/ttyUSB0" />
     <param name="frame_id" value="map" />
     <rosparam param="rate_list">[ 230400, 256000 ]</rosparam>
