@@ -971,7 +971,7 @@ bool ParserScript(HParser hP, Script script, void* hnd)
 	if (parser->device_ability & DF_WITH_UUID) {
 		for (int i=0; i<10; i++)
 		{
-			if (script(hnd, 6, "LUUIDH", 12, "PRODUCT SN: ", 9, g_uuid))
+			if (script(hnd, 6, "LUUIDH", 12, "PRODUCT SN: ", 11, g_uuid))
 			{
 				printf("get product SN : \'%s\'\n", g_uuid);
 				break;
