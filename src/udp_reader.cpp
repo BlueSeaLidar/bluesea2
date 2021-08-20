@@ -145,7 +145,7 @@ bool udp_talk(void* hnd,
 	unsigned short sn = rand();
 	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, sn, n, cmd);
 
-	int nr = 0;
+	int ntry = 0;
 	for (int i=0; i<100; i++)
 	{
 		fd_set fds;
@@ -163,7 +163,7 @@ bool udp_talk(void* hnd,
 		// read UDP data
 		if (FD_ISSET(fd_udp, &fds)) 
 		{ 
-			nr++;
+			ntry++;
 			sockaddr_in addr;
 			socklen_t sz = sizeof(addr);
 	
@@ -174,12 +174,15 @@ bool udp_talk(void* hnd,
 				CmdHeader* hdr = (CmdHeader*)buf;
 				if (hdr->sign != 0x484c || hdr->sn != sn) continue;
 					
-				for (int i=0; i<nr-nhdr-nfetch; i++) 
+				for (int i=0; i<nr-nhdr-1; i++) 
 				{
 					if (memcmp(buf+i, hdr_str, nhdr) == 0) 
 					{ 
-						memcpy(fetch, buf+i+nhdr, nfetch);
-					       	fetch[nfetch] = 0;
+						//memcpy(fetch, buf+i+nhdr, nfetch);
+						//fetch[nfetch] = 0;
+						memset(fetch, 0, nfetch);
+						for (int j=0; j<nfetch && i+nhdr+j<nr; j++)
+							fetch[j] = buf[i+nhdr+j];			
 					       	return true;
 				       	}
 			       	}
@@ -191,7 +194,7 @@ bool udp_talk(void* hnd,
 		}
 	}
 
-	printf("read %d packets, not response\n", nr);
+	printf("read %d packets, not response\n", ntry);
 	return false;
 }
 
