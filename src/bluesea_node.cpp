@@ -609,7 +609,7 @@ uint32_t get_device_ability(const std::string& platform)
 		return	DF_UNIT_IS_MM | DF_WITH_INTENSITY ;
 	}
 
-	return 0;
+	return DF_WITH_UUID;
 }
 
 
