@@ -995,6 +995,12 @@ bool ParserScript(HParser hP, Script script, void* hnd)
 				printf("get product SN : \'%s\'\n", g_uuid);
 				break;
 			}
+			else if (script(hnd, 6, "LUUIDH", 10, "VENDOR ID:", 16, buf))
+			{
+				strip(buf, g_uuid);
+				printf("get product SN : \'%s\'\n", g_uuid);
+				break;
+			}
 		}
 	}
 
