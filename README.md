@@ -66,6 +66,11 @@ Parameters
 * bool output_360; // true: collect multiple RawData packets (360 degree), then publish
 				// false: publish every RawData (36 degree)
 * std::string frame_id;	// frame information, could be used for rviz
+* bool from_zero; // true : angle range [0 - 360), false: angle range [-180, 180)
+
+// is lidar inverted
+* bool inverted; // inverted installed
+* bool reversed; // data's angle increment
 
 // angle composate
 * bool with_resample; // resample angle resolution
@@ -81,6 +86,7 @@ Parameters
 * double max_angle; // angle filters' up threashold, default value: pi
 
 * double max_dist;
+
 
 Dynamic Reconfigure Parameters
 =====================================================================
