@@ -157,7 +157,7 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData** fan
 	return got;
 }
 
-int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** fans)
+int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** fans, bool from_zero)
 {
 	PubHub* hub = (PubHub*)pub;
 
@@ -370,7 +370,8 @@ int time_cmp(const uint32_t* t1, const uint32_t* t2)
 uint32_t last_ns = 0;
 void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, 
 		double max_dist, bool with_filter, double min_ang, double max_ang,
-		bool inverted, bool reversed, double zero_shift)
+		bool inverted, bool reversed, double zero_shift,
+		bool from_zero)
 {
 	sensor_msgs::LaserScan msg;
 
@@ -435,15 +436,28 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 			msg.angle_increment = (min_ang - max_ang) / N;
 		}
 	} else {
-		if (inverted) {
-			msg.angle_min = -M_PI;
-			msg.angle_max = M_PI;
-			msg.angle_increment = M_PI*2 / N;
-		}
-		else {
-			msg.angle_min = M_PI;
-			msg.angle_max = -M_PI;
-			msg.angle_increment = -M_PI*2 / N;
+		if (from_zero) {
+			if (inverted) {
+				msg.angle_min = 0;
+				msg.angle_max = 2*M_PI*(N-1)/N;
+				msg.angle_increment = M_PI*2 / N;
+			}
+			else {
+				msg.angle_min = 2*M_PI*(N-1)/N;
+			       	msg.angle_max = 0;
+				msg.angle_increment = -M_PI*2 / N;
+			}
+		} else {
+			if (inverted) {
+				msg.angle_min = -M_PI;
+				msg.angle_max = M_PI;
+				msg.angle_increment = M_PI*2 / N;
+			}
+			else {
+				msg.angle_min = M_PI;
+				msg.angle_max = -M_PI;
+				msg.angle_increment = -M_PI*2 / N;
+			}
 		}
 	}
 
@@ -609,6 +623,7 @@ uint32_t get_device_ability(const std::string& platform)
 		return	DF_UNIT_IS_MM | DF_WITH_INTENSITY ;
 	}
 
+	printf("set with uuid\n");
 	return DF_WITH_UUID;
 }
 
@@ -725,12 +740,11 @@ int main(int argc, char **argv)
        	priv_nh.param("frame_id", frame_id, std::string("LH_laser")); // could be used for rviz
        	priv_nh.param("firmware_version", firmware_number, 2);
 
-#if 0
 	// output data format
-	int mirror, from_zero;
-       	priv_nh.param("mirror", mirror, 0); // 0: clockwise, 1: counterclockwise
-       	priv_nh.param("from_zero", from_zero, 0); // 1: angle range [0 - 360), 0: angle range [-180, 180)
-#endif
+	//bool mirror;
+       	//priv_nh.param("mirror", mirror, 0); // 0: clockwise, 1: counterclockwise
+	bool from_zero = false;
+       	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
        	
 	ros::Publisher laser_pub, cloud_pub;
 
@@ -810,14 +824,15 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			int n = GetAllFans(hub, with_soft_resample, resample_res, fans);
+			int n = GetAllFans(hub, with_soft_resample, resample_res, fans, from_zero);
 			if (n > 0)
 			{ 
 				if (output_scan) 
 				{
 				       PublishLaserScan(laser_pub, n, fans, frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle, 
-						       inverted, reversed, zero_shift);
+						       inverted, reversed, zero_shift, 
+						       from_zero);
 				}
 		
 				if (output_cloud) 
