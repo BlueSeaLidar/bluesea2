@@ -157,7 +157,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 			if (is_mm == 0) 
 				dat->points[i].distance *= 10;
 		} else {
-			dat->points[i].confidence = is_mm ? val : val*10;
+			dat->points[i].distance = is_mm ? val : val*10;
 			dat->points[i].confidence = 0;
 		}
 
