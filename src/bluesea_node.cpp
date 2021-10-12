@@ -157,7 +157,8 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData** fan
 	return got;
 }
 
-int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** fans, bool from_zero)
+int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** fans, bool from_zero,
+	uint32_t* ts_beg, uint32_t* ts_end)
 {
 	PubHub* hub = (PubHub*)pub;
 
@@ -165,11 +166,14 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 	pthread_mutex_lock(&hub->mtx);
 
 	int cnt = 0;
-	for (int i=0; i<hub->nfan; i++)
+	for (int i=1; i<hub->nfan; i++)
 	{
-		if (hub->fans[i]->angle + hub->fans[i]->span == 1800)
+		if ((from_zero && hub->fans[i]->angle == 0) ||
+		 (!from_zero && hub->fans[i]->angle == 1800) )
 		{
-			cnt = i+1;
+			ts_end[0] = hub->fans[i]->ts[0];
+			ts_end[1] = hub->fans[i]->ts[1];
+			cnt = i;
 			break;
 		}
 	}
@@ -191,6 +195,8 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 	{
 		bool circle = true;
 		int total = fans[0]->span;;
+		ts_beg[0] = fans[0]->ts[0];
+		ts_beg[1] = fans[0]->ts[1];
 		for (int i=0; i<cnt-1; i++)
 		{
 			if (fans[i]->angle + fans[i]->span != fans[i+1]->angle && 
@@ -384,52 +390,22 @@ uint32_t last_ns = 0;
 void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id, 
 		double max_dist, bool with_filter, double min_ang, double max_ang,
 		bool inverted, bool reversed, double zero_shift,
-		bool from_zero)
+		bool from_zero, uint32_t* ts_beg, uint32_t* ts_end)
 {
 	sensor_msgs::LaserScan msg;
 
 	int N = 0;
+	for (int i=0; i<nfan; i++) N += fans[i]->N;
 
-	uint32_t mx[2] = { fans[0]->ts[0], fans[0]->ts[1] };
-	uint32_t mi[2] = { fans[0]->ts[0], fans[0]->ts[1] };
+	msg.header.stamp.sec = ts_beg[0];
+	msg.header.stamp.nsec = ts_beg[1];
 
-	for (int i=0; i<nfan; i++) 
-	{
-		N += fans[i]->N;
+	double ti = double(ts_beg[0]) + double(ts_beg[1])/1000000000.0;
+	double tx = double(ts_end[0]) + double(ts_end[1])/1000000000.0;
 
-		if (time_cmp(mx, fans[i]->ts) < 0) {
-			mx[0] = fans[i]->ts[0];
-			mx[1] = fans[i]->ts[1];
-		}
-		if (time_cmp(mi, fans[i]->ts) > 0) {
-			mi[0] = fans[i]->ts[0];
-			mi[1] = fans[i]->ts[1];
-		}
-		//printf("%d %d.%d\n", fans[i]->angle, fans[i]->ts[0], fans[i]->ts[1]);
-	}
-
-			
-	msg.header.stamp.sec = mi[0];
-       	msg.header.stamp.nsec = mi[1];
-
-	double tx = double(mx[0]) + double(mx[1])/1000000000.0;
-	double ti = double(mi[0]) + double(mi[1])/1000000000.0;
-
-	msg.scan_time = (tx - ti)*nfan/(nfan-1);
+	msg.scan_time = tx - ti;//nfan/(nfan-1);
 	msg.time_increment = msg.scan_time / N;
 
-	if (mx[0] - mi[0] > 1) {
-		printf("%d.%d -> %d.%d = %f %f\n", 
-				mi[0], mi[1], mx[0], mx[1], 
-				msg.scan_time, msg.time_increment);
-	}
-
-	//msg.header.stamp = ros::Time::now();
-
-#if 0
-	printf("tv %d\n", msg.header.stamp.nsec < last_ns ? (msg.header.stamp.nsec + (1000000000- last_ns)) : msg.header.stamp.nsec - last_ns);
-	last_ns = msg.header.stamp.nsec;
-#endif
 	
 	msg.header.frame_id = frame_id;
 
@@ -763,7 +739,7 @@ int main(int argc, char **argv)
 	//bool mirror;
        	//priv_nh.param("mirror", mirror, 0); // 0: clockwise, 1: counterclockwise
 	bool from_zero = false;
-       	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
+	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
        	
 	ros::Publisher laser_pub, cloud_pub;
 
@@ -843,15 +819,16 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			int n = GetAllFans(hub, with_soft_resample, resample_res, fans, from_zero);
+			uint32_t ts_beg[2], ts_end[2];	
+			int n = GetAllFans(hub, with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
 			if (n > 0)
 			{ 
 				if (output_scan) 
 				{
 				       PublishLaserScan(laser_pub, n, fans, frame_id, max_dist, 
 						       with_angle_filter, min_angle, max_angle, 
-						       inverted, reversed, zero_shift, 
-						       from_zero);
+						       inverted, reversed, zero_shift, from_zero,
+							   ts_beg, ts_end);
 				}
 		
 				if (output_cloud) 
