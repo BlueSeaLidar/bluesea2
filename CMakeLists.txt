@@ -141,7 +141,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp)
 add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/parser.cpp src/uart.c)
-
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
