@@ -134,6 +134,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR_SIZE);
 	dat->span = 360;
@@ -192,6 +193,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR_SIZE);
 	int span = (flags & DF_FAN_90) ? 90 : 360;
@@ -279,11 +281,11 @@ static FanSegment* GetFanSegment(const RawDataHdr7& hdr, uint8_t* pdat, bool wit
 	return fan_seg;
 }
 
+
 void DecTimestamp(uint32_t ts, uint32_t* ts2)
 {	
 	timeval tv;
 	gettimeofday(&tv, NULL);
-
 	uint32_t sec = tv.tv_sec % 3600;
 	if (sec < 5 && ts/1000 > 3595)
 	{
@@ -303,6 +305,7 @@ static RawData* PackFanData(FanSegment* seg)
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	dat->code = 0xfac7;
 	dat->N = seg->hdr.whole_fan;
@@ -312,6 +315,7 @@ static RawData* PackFanData(FanSegment* seg)
 	dat->first = 0;
 	dat->last = 0;
 	dat->fend = 0;
+	dat->counterclockwise = 0;
 
 	DecTimestamp(seg->hdr.timestamp, dat->ts);
 	//printf("%d %d.%d\n", dat->angle, dat->ts[0], dat->ts[1]);
@@ -445,7 +449,7 @@ static RawData* GetData0x99(const RawDataHdr99& hdr, unsigned char* pdat, bool)
 		return NULL;
 	}
 
-	//memset(dat, 0, sizeof(ScanData));
+	memset(dat, 0, sizeof(RawData));
 	dat->code = hdr.code;
 	dat->N = hdr.N;
 	dat->angle = hdr.from * 3600 / hdr.total; // 0.1 degree
@@ -455,6 +459,8 @@ static RawData* GetData0x99(const RawDataHdr99& hdr, unsigned char* pdat, bool)
 	//dat->last;
 	//dat->fend;
 	DecTimestamp(hdr.timestamp, dat->ts);
+
+	dat->counterclockwise = (hdr.flags & DF_MOTOR_REVERSE) ? 1 : 0;
 
 	pdat += HDR99_SIZE;
 
@@ -482,6 +488,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, bool wi
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR2_SIZE);
 
@@ -530,6 +537,7 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, bool wi
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR3_SIZE);
 	
@@ -675,7 +683,8 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 				// need more bytes
 				break;
 			}
-		       	RawDataHdr99 hdr99;
+		 
+			RawDataHdr99 hdr99;
 			memcpy(&hdr99, buf+idx, HDR99_SIZE);
 
 			RawData* fan = GetData0x99(hdr99, buf+idx, parser->with_chk);
@@ -929,7 +938,7 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 		if (hdr.N*3+ HDR99_SIZE + 2 > len)
 		{
 			// need more bytes
-			//printf("C7 len %d N %d\n", len, hdr.N);
+			//printf("99 len %d N %d\n", len, hdr.N);
 			return 0;
 		}
 
