@@ -7,6 +7,7 @@
 #define DF_SMOOTHED		0x0008
 #define DF_FAN_90		0x0020
 #define DF_WITH_RESAMPLE	0X0080
+#define DF_MOTOR_REVERSE	0x0100
 #define DF_WITH_UUID		0X1000
 
 #define MAX_FANS 120
@@ -38,6 +39,7 @@ struct RawData
 	// short ros_angle;	// 0.1 degree
 	DataPoint points[MAX_POINTS];
 	uint32_t ts[2];
+	uint8_t	counterclockwise;
 
 	//unsigned short distance[1000];
 	//unsigned char confidence[1000];
