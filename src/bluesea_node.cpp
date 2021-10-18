@@ -394,6 +394,7 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 {
 	sensor_msgs::LaserScan msg;
 
+
 	int N = 0;
 	for (int i=0; i<nfan; i++) N += fans[i]->N;
 
@@ -454,10 +455,18 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 			}
 		}
 	}
-
-			
+		
 	msg.angle_min += zero_shift;
 	msg.angle_max += zero_shift;
+
+	if (fans[0]->counterclockwise != 0) {
+		double d = msg.angle_min;
+		msg.angle_min = msg.angle_max;
+		msg.angle_max = d;
+		msg.angle_increment = -msg.angle_increment;
+		msg.angle_min -= msg.angle_increment;
+		msg.angle_max -= msg.angle_increment;
+	}
 
 	msg.intensities.resize(N); 
 	msg.ranges.resize(N);
