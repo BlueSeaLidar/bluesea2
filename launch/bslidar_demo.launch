@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<launch>
+<group ns="lidar1">
+<!-- Start bslidar ROS driver, please check default params before start it！-->
+  <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
+    <param name="type" value="udp" />
+    <param name="platform" value="LDS-50C-E" />
+    <param name="lidar_port" value="6543" />
+    <param name="local_port" value="6668" />
+    <param name="lidar_ip" value="192.168.0.98" />
+    <param name="raw_bytes" value="3"/>
+    <param name="frame_id" value="laser" />
+    <param name="output_360" value="true" />
+    <param name="output_scan" value="true" />
+    <param name="output_cloud" value="false"/>
+    <param name="with_smooth" value="true" />
+    <param name="with_deshadow" value="true" />
+    <param name="with_angle_filter" value="true"/>
+    <param name="min_angle" value="-2.2"/>
+    <param name="max_angle" value="2.2"/>
+    <!--rosparam param="custom_span">[-30,30]</rosparam-->
+    <param name="min_dist" value="0.1"/>
+    <param name="max_dist" value="50.0"/>
+    <param name="hard_resample" value="false"/>
+    <param name="soft_resample" value="true"/>
+    <param name="resample_res" value="0.2"/>
+    <param name="unit_is_mm" value="true"/>
+    <param name="with_confidence" value="true"/>
+    <param name="with_checksum" value="true"/>
+    <param name="inverted" value="true"/>
+    <param name="reversed" value="false"/> 
+    <param name="zero_shift" value="-0.1"/> 
+    <param name="rpm" value="600"/>
+    <param name="from_zero" value="false"/>
+  </node>
+
+  <node pkg="rviz" type="rviz" name="rviz"
+    args="-d $(find bluesea2)/launch/bslidar.rviz"/>
+</group>
+</launch>
+
+
+
+
+
+
