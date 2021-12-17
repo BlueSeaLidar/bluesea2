@@ -684,8 +684,8 @@ bool get_range_param(ros::NodeHandle nh, const char* name, Range& range)
 	{
             if(rg.size() == 2 && rg[0] < rg[1])
 	    {
-		    range.min = rg[0];
-		    range.max = rg[1];
+		    range.min = rg[0] * 180 / M_PI;
+		    range.max = rg[1] * 180 / M_PI;
 		    return true;
 	    }
 	}
