@@ -8,6 +8,7 @@
     <param name="lidar_ip" value="192.168.0.78" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="laser" />
+    <param name="alarm_msg" value="false" />  
     <param name="output_360" value="true" />
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="false"/>
