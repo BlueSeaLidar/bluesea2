@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include "parser.h"
+#include "alarm.h"
 
 #define HDR_SIZE 6
 #define HDR2_SIZE 8
@@ -827,6 +828,16 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 
 	uint8_t type = buf[0];
 
+	if (memcmp(buf, "LMSG", 4) == 0) 
+	{
+		if (len >= sizeof(LidarAlarm) )
+		{
+			LidarAlarm* msg = (LidarAlarm*)buf;
+		}
+
+		return 0;
+	}
+
 	if (buf[1] != 0xfa) {
 		//printf("skip packet %x %x len\n", buf[0], buf[1]);
 	}
@@ -1099,6 +1110,24 @@ bool ParserScript(HParser hP, Script script, void* hnd)
 			}
 		}
 	}
+
+	// enable/disable alaram message uploading
+	if (parser->device_ability & EF_ENABLE_ALARM_MSG) 
+	{
+	       	char cmd[32];
+	       	sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
+
+		for (int i=0; i<10; i++) 
+		{
+			if (script(hnd, strlen(cmd), cmd, 0, NULL, 0, NULL))
+			{
+				printf("set alarm_msg ok\n");
+				break;
+			}
+		}
+	}
+
+
 
 	return true;
 }

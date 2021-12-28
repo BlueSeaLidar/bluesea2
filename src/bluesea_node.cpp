@@ -657,7 +657,8 @@ uint32_t get_device_ability(const std::string& platform)
 		       	DF_DESHADOWED	|
 		       	DF_SMOOTHED |	
 			DF_WITH_RESAMPLE |
-		       	DF_WITH_UUID;
+		       	DF_WITH_UUID |
+			EF_ENABLE_ALARM_MSG;
 	}
 	else if (platform == "LDS-50C-2") 
 	{
@@ -672,7 +673,7 @@ uint32_t get_device_ability(const std::string& platform)
 		return	DF_UNIT_IS_MM | DF_WITH_INTENSITY ;
 	}
 
-	printf("set with uuid\n");
+	//printf("set with uuid\n");
 	return DF_WITH_UUID;
 }
 
@@ -757,6 +758,9 @@ int main(int argc, char **argv)
 	// zero position  
 	double zero_shift;
 	priv_nh.param("zero_shift", zero_shift, 0.0); 
+
+	bool enable_alarm_msg;
+       	priv_nh.param("alarm_msg", enable_alarm_msg, false); //let lidar upload alarm message
 
 	bool with_smooth, with_deshadow;
        	priv_nh.param("with_smooth", with_smooth, true); //lidar data smooth filter
