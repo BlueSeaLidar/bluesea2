@@ -24,6 +24,7 @@
     <param name="with_checksum" value="true"/>
     <param name="from_zero" value="false"/>
     <param name="inverted" value="false"/>
+    <rosparam param="mask1">[ -1.5, 0 ]</rosparam>
   </node>
  </group>
 </launch>
