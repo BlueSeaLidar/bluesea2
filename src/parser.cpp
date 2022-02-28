@@ -226,7 +226,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	{
 		delete dat;
 		printf("chksum ce error");
-		return NULL;;
+		return NULL;
 	}
 
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
