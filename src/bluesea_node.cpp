@@ -128,6 +128,7 @@ void resample(RawData* dat, int NN)
 			dat->points[i].distance = 0;
 			dat->points[i].confidence = 0;
 		}
+		dat->points[i].degree = dat->angle/10.0 + (dat->span * i) / (10.0 * NN);
 	}
 
 	dat->N = NN;
@@ -156,10 +157,15 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData** fan
 	pthread_mutex_unlock(&hub->mtx);
 
 	if (with_resample)// && resample_res > 0.05)
-       	{
-	       	int NN = fans[0]->span/(10*resample_res);
-	       	if (NN < fans[0]->N) resample(fans[0], NN);
-       	}
+	{
+		int NN = fans[0]->span/(10*resample_res);
+		if (NN < fans[0]->N) {
+			resample(fans[0], NN);
+		} 
+		else if (NN > fans[0]->N) {
+			printf("fan %d less than %d\n", fans[0]->N, NN);
+		}
+	}
 
 	return got;
 }
@@ -225,6 +231,9 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData** 
 				int NN = fans[i]->span/(10*resample_res);
 				if (NN < fans[i]->N) {
 					resample(fans[i], NN);
+				} 
+				else if (NN > fans[i]->N) { 
+					printf("fan [%d] %d less than %d\n", i, fans[i]->N, NN);
 				}
 			}
 		}
@@ -251,6 +260,7 @@ double ROSAng(double ang)
 int GetCount(int nfan, RawData** fans, double min_deg, double max_deg, double& min_pos, double& max_pos)
 {
 	int N = 0, cnt = 0;
+
 	for (int j=0; j<nfan; j++) 
 	{
 		for (int i=fans[j]->N-1; i>=0; i--, cnt++) 
@@ -264,11 +274,10 @@ int GetCount(int nfan, RawData** fans, double min_deg, double max_deg, double& m
 				if (min_pos > deg) min_pos = deg;
 				if (max_pos < deg) max_pos = deg;
 			}
-			//printf("ang %f\n", fans[j]->points[i].degree);
 			N++;
 		}
 	}
-	//printf("angle filter %d to %d, [%f, %f]\n", cnt, N, min_deg, max_deg);
+	//printf("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, cnt, N, min_pos, max_pos);
 	return N;
 }
 
