@@ -82,7 +82,7 @@ void PublishData(HPublish pub, int n, RawData** fans)
 	pthread_mutex_unlock(&hub->mtx);
 
 	for (int i=0; i<skip; i++)
-	{
+	{ 
 		delete drop[i];
 	}
 }
@@ -738,13 +738,17 @@ int main(int argc, char **argv)
 	priv_nh.getParam("rate_list", rate_list);
 
 	// for network comm
-	std::string lidar_ip, group_ip;
+	std::string lidar_ip;
 	priv_nh.param("lidar_ip", lidar_ip, std::string("192.168.158.91"));
-	priv_nh.param("group_ip", group_ip, std::string("224.1.1.91"));
+
 	int lidar_port, local_port;
 	priv_nh.param("lidar_port", lidar_port, 5000);
 	priv_nh.param("local_port", local_port, 50122);
 
+	bool is_group_listener;
+	priv_nh.param("group_listener", is_group_listener, false); 
+	std::string group_ip;
+	priv_nh.param("group_ip", group_ip, std::string("224.1.1.91"));
 
 	// device identity in data packets, used when multiple lidars connect to single controller
 	int dev_id;
@@ -881,8 +885,9 @@ int main(int argc, char **argv)
 	}
 	else if (g_type == "udp") 
 	{
-		g_reader = StartUDPReader(lidar_ip.c_str(), lidar_port,
-			       	group_ip.c_str(), local_port, parser, hub);
+		g_reader = StartUDPReader(lidar_ip.c_str(), lidar_port, local_port, 
+					is_group_listener, group_ip.c_str(),
+					parser, hub);
 	}
 	else if (g_type == "tcp") 
 	{
