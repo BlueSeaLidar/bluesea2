@@ -38,7 +38,7 @@ struct UDPInfo
 	int listen_port;
 	int lidar_port;
 	char lidar_ip[32];
-	char group_ip[32];
+	bool is_group_listener;
 	pthread_t thr;
 };
 
@@ -80,8 +80,6 @@ unsigned int stm32crc(unsigned int *ptr, unsigned int len)
 	}
 	return crc32;
 }
-
-
 
 // 
 bool send_cmd_udp_f(int fd_udp, const char* dev_ip, int dev_port,
@@ -261,8 +259,11 @@ void* UdpThreadProc(void* p)
 	int fd_udp = info->fd_udp;
 	
 	// send requirement to lidar
-	char cmd[12] = "LUUIDH";
-	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
+	if (!info->is_group_listener) 
+	{
+		char cmd[12] = "LUUIDH";
+		int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
+	}
 
 	RawData* fans[MAX_FANS];
 	char buf[1024];
@@ -274,7 +275,10 @@ void* UdpThreadProc(void* p)
 
 	uint32_t delay = 0;
 
-	ParserScript(info->hParser, udp_talk, info);
+	if (!info->is_group_listener) 
+	{
+		ParserScript(info->hParser, udp_talk, info);
+	}
 
 	while (1) 
 	{
@@ -287,14 +291,17 @@ void* UdpThreadProc(void* p)
 		int ret = select(fd_udp+1, &fds, NULL, NULL, &to); 
 
 		if (ret == 0) {
-			char cmd[12] = "LGCPSH";
-			rt = send_cmd_udp(info->fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
+			if (!info->is_group_listener)
+			{
+				char cmd[12] = "LGCPSH";
+				int rt = send_cmd_udp(info->fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
+			}
 		}
 		
 		if (ret < 0) {
 			printf("select error\n");
 			continue;
-	       	}
+		}
 
 		gettimeofday(&tv, NULL);
 
@@ -329,7 +336,7 @@ void* UdpThreadProc(void* p)
 			}
 		}
 
-		if (tv.tv_sec > tto) 
+		if (tv.tv_sec > tto && !info->is_group_listener) 
 		{
 			KeepAlive alive;
 			gettimeofday(&tv, NULL);
@@ -348,9 +355,9 @@ void* UdpThreadProc(void* p)
 	return NULL;
 }
 
-
 HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port, 
-		const char* group_ip, unsigned short listen_port, 
+		unsigned short listen_port, 
+		bool is_group_listener, const char* group_ip,
 		HParser hParser, HPublish hPub)
 {
 	UDPInfo* info = new UDPInfo;
@@ -359,10 +366,14 @@ HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port,
 	info->listen_port = listen_port;
 	info->lidar_port = lidar_port;
 	strcpy(info->lidar_ip, lidar_ip);
-	strcpy(info->group_ip, group_ip);
+	info->is_group_listener = is_group_listener;
 
 	// open UDP port
 	info->fd_udp  = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+	int one = 1;
+    setsockopt(info->fd_udp, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
 	sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(listen_port);
@@ -374,8 +385,22 @@ HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port,
 		printf("bind port %d failed\n", listen_port);
 	}
 	
-	printf("start udp %s:%d udp %d\n", lidar_ip, lidar_port, info->fd_udp);
+	printf("start udp local port %d, lidar %s:%d udp %d\n", 
+			listen_port, lidar_ip, lidar_port, info->fd_udp);
 
+	if (is_group_listener) 
+	{
+		ip_mreq group;
+		memset(&group, 0, sizeof(group)); 
+		group.imr_multiaddr.s_addr = inet_addr(group_ip);
+		group.imr_interface.s_addr = INADDR_ANY; 
+
+		int rt = setsockopt(info->fd_udp, IPPROTO_IP, 
+			IP_ADD_MEMBERSHIP, (char*)&group,
+			sizeof(group));
+			
+		printf("Adding to multicast group %s %s\n", group_ip, rt < 0 ? "fail!" : "ok");
+	}
 	pthread_create(&info->thr, NULL, UdpThreadProc, info); 
 
 	return info;
@@ -384,7 +409,7 @@ HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port,
 bool SendUdpCmd(HReader hr, int len, char* cmd)
 {
 	UDPInfo* info = (UDPInfo*)hr;
-	if (!info || info->fd_udp <= 0)
+	if (!info || info->fd_udp <= 0 || info->is_group_listener)
 		return false;
 		
 	return send_cmd_udp(info->fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), len, cmd);
