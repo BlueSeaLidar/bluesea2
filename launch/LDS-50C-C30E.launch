@@ -6,7 +6,7 @@
     <param name="lidar_port" value="6543" />
     <param name="local_port" value="9999" />
     <param name="lidar_ip" value="192.168.0.98" />
-    <param name="group_listener" value="true" />
+    <param name="group_listener" value="false" />
     <param name="group_ip" value="224.0.0.11" />
     <param name="local_ip" value="192.168.0.32" />
     <param name="raw_bytes" value="3"/>
