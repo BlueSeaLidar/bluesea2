@@ -4,8 +4,11 @@
     <param name="type" value="udp" />
     <param name="platform" value="LDS-50C-E" />
     <param name="lidar_port" value="6543" />
-    <param name="local_port" value="6668" />
+    <param name="local_port" value="9999" />
     <param name="lidar_ip" value="192.168.0.98" />
+    <param name="group_listener" value="true" />
+    <param name="group_ip" value="224.0.0.11" />
+    <param name="local_ip" value="192.168.0.32" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
     <param name="output_360" value="true" />
