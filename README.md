@@ -96,3 +96,31 @@ command line like this:
 rosrun dynamic_reconfigure dynparam set /lidar1/lidar01 "{'rpm':700}"
 
 
+How to control Lanhai ros node  start  and stop
+=====================================================================
+* client:      
+ 			
+												   arg1  state    arg2:choose lidar serial number
+
+			start  or stop  one lidar
+			rosrun bluesea2  bluesea2_node_client  start/stop     0/1/2/... 
+			start or stop   all lidar
+			rosrun bluesea2  bluesea2_node_client  start/stop     -1          
+	        
+
+* server:     
+
+ 			roslaunch bluesea2  xxx.launch
+
+
+
+How to enable multiple radars and use only one port
+=====================================================================
+refer to  LDS-50C-C30E.launch
+warming: The following parameters value is must different
+
+	lidar_ip/lidar*_ip  
+
+	lidar_port/lidar*_port
+
+	topic/topic*   
