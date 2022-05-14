@@ -14,12 +14,12 @@
 #include <sensor_msgs/PointCloud.h>
 #include <std_msgs/UInt16.h>
 #include <std_srvs/Empty.h>
-
+#include<bluesea2/Control.h>
 #include <dynamic_reconfigure/server.h>
 #include <bluesea2/DynParamsConfig.h>
 
 #include <pthread.h>
-
+#include<signal.h>
 #include "reader.h"
 
 HReader g_reader = NULL;
@@ -30,8 +30,6 @@ struct Range {
 	double max;
 };
 
-
-
 struct PubHub
 {
 	pthread_mutex_t mtx;
@@ -39,16 +37,34 @@ struct PubHub
 	RawData* fans[MAX_FANS];
 };
 
+void closeSignal(int sig)
+{
+	//这里主要进行退出前的数据保存、内存清理、告知其他节点等工作
+	ROS_INFO("shutting down!");
+	ros::shutdown();
+    exit(0);
+}
 
-bool SendCmd(int len, char* cmd)
+bool SendCmd(int len, char* cmd,int index)
 {
 	if ( g_type == "uart" ) 
 	{
 		return SendUartCmd(g_reader, len, cmd);
 	}
 	else if (g_type == "udp") 
-	{
-		return SendUdpCmd(g_reader, len, cmd);
+	{	
+		if(index<0)
+		{
+			int tmp=0;
+			memcpy(&tmp,g_reader,sizeof(int));
+			for(int i=0;i<tmp;i++)
+			{
+				SendUdpCmd(g_reader, i, len, cmd);
+			}
+			return true;
+		}
+		else
+			return SendUdpCmd(g_reader, index, len, cmd);
 	}
 	else if (g_type == "tcp")
 	{
@@ -625,7 +641,6 @@ void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::stri
 	cloud_pub.publish(cloud);
 }
 
-
 void setup_params(bluesea2::DynParamsConfig &config, uint32_t level) 
 {
 	ROS_INFO("Change RPM to [%d]", config.rpm);
@@ -633,29 +648,27 @@ void setup_params(bluesea2::DynParamsConfig &config, uint32_t level)
 	char cmd[32];
 	sprintf(cmd, "LSRPM:%dH", config.rpm);
 
-	SendCmd(strlen(cmd), cmd);
+	SendCmd(strlen(cmd), cmd,0);
 }
 
 
 bool should_start = true;
 // service call back function
-bool stop_motor(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+bool stop_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &res)
 {
 	should_start = false;
-	ROS_INFO("Stop motor");
+	ROS_INFO("Stop motor  index:%ld",req.index);
 	char cmd[] = "LSTOPH";
-	return SendCmd(6, cmd);
+	return SendCmd(6, cmd,req.index);
 }
 
 // service call back function
-bool start_motor(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+bool start_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &res)
 {
 	should_start = true;
 	char cmd[] = "LSTARH";
-
-	ROS_INFO("Stop motor");
-
-	return SendCmd(6, cmd);
+	ROS_INFO("Start motor  index:%ld",req.index);
+	return SendCmd(6, cmd,req.index);
 }
 
 uint32_t get_device_ability(const std::string& platform) 
@@ -705,8 +718,8 @@ bool get_range_param(ros::NodeHandle nh, const char* name, Range& range)
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "bluesea2_laser_publisher");
-       	ros::NodeHandle n;
-       	ros::NodeHandle priv_nh("~");
+	ros::NodeHandle node_handle;
+	ros::NodeHandle priv_nh("~");
 	
 	//std_msgs::UInt16 rpms; 
 
@@ -738,12 +751,50 @@ int main(int argc, char **argv)
 	priv_nh.getParam("rate_list", rate_list);
 
 	// for network comm
-	std::string lidar_ip;
-	priv_nh.param("lidar_ip", lidar_ip, std::string("192.168.158.91"));
 
-	int lidar_port, local_port;
-	priv_nh.param("lidar_port", lidar_port, 5000);
+	int lidar_ports[MAX_LIDARS], local_port;
+	priv_nh.param("lidar_port", lidar_ports[0], 5000);
 	priv_nh.param("local_port", local_port, 50122);
+
+	std::string lidar_ips[MAX_LIDARS];
+	priv_nh.param("lidar_ip", lidar_ips[0], std::string("192.168.158.91"));
+
+	std::string laser_topics[MAX_LIDARS];
+	std::string cloud_topics[MAX_LIDARS];
+	priv_nh.param("topic", laser_topics[0], std::string("scan")); 
+	priv_nh.param("cloud_topic", cloud_topics[0], std::string("cloud")); 
+
+	int lidar_count = 1;
+
+	for (int i=1; i<MAX_LIDARS; i++)
+	{
+		char s[32], t[32];
+
+		sprintf(s, "lidar%d_ip", i);
+		priv_nh.param(s, lidar_ips[i], std::string(""));
+		if (lidar_ips[i].length() == 0) break;
+
+		sprintf(s, "lidar%d_port", i);
+		priv_nh.param(s, lidar_ports[i], 0);
+		if (lidar_ports[i] <= 0) break;
+
+		sprintf(s, "topic%d", i);
+		sprintf(t, "scan%d", i);
+		priv_nh.param(s, laser_topics[i], std::string(t));
+
+		sprintf(s, "cloud_topic%d", i);
+		sprintf(t, "cloud%d", i);
+		priv_nh.param(s, cloud_topics[i], std::string(t));
+
+		lidar_count++;
+	}
+	printf("we will connect to %d lidars\n", lidar_count);
+	for (int i=0; i<lidar_count; i++) {
+		printf("lidar[%d] address %s:%d, topic `%s\n", i, 
+			lidar_ips[i].c_str(), lidar_ports[i], 
+			laser_topics[i].c_str());
+	}
+
 
 	bool is_group_listener;
 	priv_nh.param("group_listener", is_group_listener, false); 
@@ -809,12 +860,12 @@ int main(int argc, char **argv)
 	double min_angle, max_angle;
 	priv_nh.param("with_angle_filter", with_angle_filter, false); // true: enable angle filter, false: disable
 	priv_nh.param("min_angle", min_angle, -M_PI); // angle filter's low threshold, default value: -pi
-       	priv_nh.param("max_angle", max_angle, M_PI); // angle filters' up threashold, default value: pi
+	priv_nh.param("max_angle", max_angle, M_PI); // angle filters' up threashold, default value: pi
 
 	// range limitation
 	double min_dist, max_dist;
-       	priv_nh.param("min_dist", min_dist, 0.0); // min detection range, default value: 0M
-       	priv_nh.param("max_dist", max_dist, 9999.0); // max detection range, default value: 9999M
+	priv_nh.param("min_dist", min_dist, 0.0); // min detection range, default value: 0M
+	priv_nh.param("max_dist", max_dist, 9999.0); // max detection range, default value: 9999M
     
 	// customize angle filter
 	std::vector<Range> custom_masks;
@@ -829,10 +880,11 @@ int main(int argc, char **argv)
 	}
 
 	// frame information
-       	std::string frame_id;
-       	int firmware_number; 
-       	priv_nh.param("frame_id", frame_id, std::string("LH_laser")); // could be used for rviz
-       	priv_nh.param("firmware_version", firmware_number, 2);
+	std::string frame_id;
+	priv_nh.param("frame_id", frame_id, std::string("LH_laser")); // could be used for rviz
+
+	int firmware_number; 
+	priv_nh.param("firmware_version", firmware_number, 2);
 
 	// output data format
 	//bool mirror;
@@ -840,20 +892,24 @@ int main(int argc, char **argv)
 	bool from_zero = false;
 	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
        	
-	ros::Publisher laser_pub, cloud_pub;
+	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
-	if (output_cloud) {
-		cloud_pub = n.advertise<sensor_msgs::PointCloud>("cloud", 50);
+	for (int i=0; i<lidar_count; i++)
+	{
+		char s[32];
+		if (output_cloud) {
+			cloud_pubs[i] = node_handle.advertise<sensor_msgs::PointCloud>(cloud_topics[i], 50);
+		}
+		if (output_scan) {
+			laser_pubs[i] = node_handle.advertise<sensor_msgs::LaserScan>(laser_topics[i], 50);
+		}
+
 	}
-	if (output_scan) {
-		laser_pub = n.advertise<sensor_msgs::LaserScan>("scan", 50);
-	}
-   
-	ros::ServiceServer stop_srv = n.advertiseService("stop_motor", stop_motor);
-       	ros::ServiceServer start_srv = n.advertiseService("start_motor", start_motor);
+	ros::ServiceServer stop_srv = node_handle.advertiseService("stop_motor", stop_motor);
+	ros::ServiceServer start_srv = node_handle.advertiseService("start_motor", start_motor);
 
 	dynamic_reconfigure::Server<bluesea2::DynParamsConfig> server;
-       	server.setCallback( boost::bind(&setup_params, _1, _2) );
+	server.setCallback( boost::bind(&setup_params, _1, _2) );
 
 	// 
 	uint32_t device_ability = get_device_ability(platform);
@@ -866,11 +922,16 @@ int main(int argc, char **argv)
 	if (with_smooth) init_states |= DF_SMOOTHED;
 	if (with_deshadow) init_states |= DF_DESHADOWED;
 
-	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk, dev_id);
-
-	PubHub* hub = new PubHub;
-	hub->nfan = 0;
-	pthread_mutex_init(&hub->mtx, NULL);
+	HParser parsers[MAX_LIDARS];
+	PubHub* hubs[MAX_LIDARS] = { NULL };
+	for (int i=0; i<lidar_count; i++)
+	{
+		parsers[i] = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, 
+				with_chk, dev_id);
+		hubs[i] = new PubHub;
+		hubs[i]->nfan = 0;
+		pthread_mutex_init(&hubs[i]->mtx, NULL);
+	}
 
 	if (g_type == "uart") 
 	{
@@ -881,72 +942,80 @@ int main(int argc, char **argv)
 			printf("[%d] => %d\n", i, rate_list[i]);
 		}
 		rates[rate_list.size()] = 0;
-		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parser, hub);
+		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parsers[0], hubs[0]);
 	}
 	else if (g_type == "udp") 
 	{
-		g_reader = StartUDPReader(lidar_ip.c_str(), lidar_port, local_port, 
-					is_group_listener, group_ip.c_str(),
-					parser, hub);
+		LidarInfo lidars[MAX_LIDARS];
+		for (int i=0; i<lidar_count; i++)
+		{
+			lidars[i].parser = parsers[i];
+			lidars[i].pub = hubs[i];
+			strcpy(lidars[i].lidar_ip, lidar_ips[i].c_str());
+			lidars[i].lidar_port = lidar_ports[i];
+		}
+		g_reader = StartUDPReader( local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars );
 	}
 	else if (g_type == "tcp") 
 	{
-		g_reader = StartTCPReader(lidar_ip.c_str(), lidar_port, parser, hub);
+		g_reader = StartTCPReader(lidar_ips[0].c_str(), lidar_ports[0], parsers[0], hubs[0]);
 	}
-
+	
 	while (ros::ok()) 
 	{ 
 		ros::spinOnce();
-		
-		RawData* fans[MAX_FANS] = {NULL};
-
-		if (!output_360) 
+		bool idle = true;
+		for (int i=0; i<lidar_count; i++)
 		{
-			if (GetFan(hub, with_soft_resample, resample_res, fans)) 
+			RawData* fans[MAX_FANS] = {NULL};
+
+			if (!output_360) 
 			{
-				if (output_scan) 
+				if (GetFan(hubs[i], with_soft_resample, resample_res, fans)) 
 				{
-				    PublishLaserScanFan(laser_pub, fans[0], frame_id,min_dist, max_dist,
-						       with_angle_filter, min_angle, max_angle, 
-							   inverted, reversed, zero_shift,
-							   custom_masks);
-					//printf("free %x\n", fans[0]);
+					if (output_scan) 
+					{
+						PublishLaserScanFan(laser_pubs[i], fans[0], frame_id, 
+								min_dist, max_dist,
+								with_angle_filter, min_angle, max_angle, 
+								inverted, reversed, zero_shift,
+								custom_masks);
+						//printf("free %x\n", fans[0]);
+					}
+					delete fans[0];
+					idle = false;
 				}
-				delete fans[0];
 			}
-			else {
-				ros::Duration(0.001).sleep();
+			else
+			{
+				uint32_t ts_beg[2], ts_end[2];
+				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
+				if (n > 0)
+				{ 
+					idle = false;
+					if (output_scan) 
+					{
+						PublishLaserScan(laser_pubs[i], n, fans, frame_id, min_dist, max_dist,
+								with_angle_filter, min_angle, max_angle, 
+								inverted, reversed, zero_shift, from_zero,
+								ts_beg, ts_end, custom_masks);
+					}
+			
+					if (output_cloud) 
+					{
+						PublishCloud(cloud_pubs[i], n, fans, frame_id, max_dist, 
+								with_angle_filter, min_angle, max_angle);
+					}
+
+					for (int i=0; i<n; i++) delete fans[i];
+				}
 			}
 		}
-		else
-		{
-			uint32_t ts_beg[2], ts_end[2];
-			int n = GetAllFans(hub, with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
-			if (n > 0)
-			{ 
-				if (output_scan) 
-				{
-				       PublishLaserScan(laser_pub, n, fans, frame_id, min_dist, max_dist,
-						       with_angle_filter, min_angle, max_angle, 
-						       inverted, reversed, zero_shift, from_zero,
-						       ts_beg, ts_end, custom_masks);
-				}
-		
-				if (output_cloud) 
-				{
-				       PublishCloud(cloud_pub, n, fans, frame_id, max_dist, 
-						       with_angle_filter, min_angle, max_angle);
-				}
-
-				for (int i=0; i<n; i++) delete fans[i];
-			}
-			else {
-			       	ros::Duration(0.05).sleep();
-			}
+		if (idle) {
+			ros::Duration(0.05).sleep();
 		}
 	}
-
-       	return 0;
+	return 0;
 }
 
 
