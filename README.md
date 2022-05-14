@@ -116,7 +116,7 @@ How to control Lanhai ros node  start  and stop
 
 How to enable multiple radars and use only one port
 =====================================================================
-refer to  LDS-50C-C30E.launch
+refer to  dual-LDS-50C-C30E.launch
 warming: The following parameters value is must different
 
 	lidar_ip/lidar*_ip  
