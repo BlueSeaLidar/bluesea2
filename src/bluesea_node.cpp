@@ -1012,7 +1012,7 @@ int main(int argc, char **argv)
 			}
 		}
 		if (idle) {
-			ros::Duration(0.05).sleep();
+			ros::Duration(0.001).sleep();
 		}
 	}
 	return 0;
