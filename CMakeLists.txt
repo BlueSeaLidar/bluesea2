@@ -8,11 +8,10 @@ project(bluesea2)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-	dynamic_reconfigure
+  dynamic_reconfigure
   rosconsole
   roscpp
   sensor_msgs
-  std_srvs
   message_generation
 )
 
@@ -73,7 +72,7 @@ add_service_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
    DEPENDENCIES
-   std_msgs
+   geometry_msgs
  )
 
 ################################################
@@ -114,6 +113,7 @@ catkin_package(
 #  LIBRARIES bluesea
 #  CATKIN_DEPENDS rosconsole roscpp sensor_msgs std_srvs
 #  DEPENDS system_lib
+CATKIN_DEPENDS message_runtime
 )
 
 ###########
@@ -143,8 +143,8 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp)
 add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/parser.cpp src/uart.c)
 add_executable(${PROJECT_NAME}_node_client src/bluesea_node_client.cpp)
-add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
-add_dependencies(${PROJECT_NAME}_node_client ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg  bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_node_client ${PROJECT_NAME}_gencfg bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
