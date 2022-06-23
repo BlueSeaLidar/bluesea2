@@ -4,10 +4,10 @@
 #include "parser.h"
 
 
-typedef void* HReader;
-typedef void* HPublish;
+
 
 #define MAX_LIDARS 8
+
 
 struct LidarInfo {
 	HParser parser;
@@ -15,9 +15,7 @@ struct LidarInfo {
 	char lidar_ip[32];
 	int lidar_port;
 };
-
-
-void PublishData(HPublish, int, RawData**);;
+void PublishData(HPublish, int, RawData**);
 
 HReader StartUartReader(const char* port, int baudrate, int* rate_list, HParser, HPublish);
 bool SendUartCmd(HReader, int len, char*);
@@ -36,5 +34,10 @@ bool SendUdpCmd(HReader hr, int id, int len, char* cmd);
 HReader StartTCPReader(const char* lidar_ip, unsigned short lidar_port, HParser hParser, HPublish hPub);
 
 bool SendTcpCmd(HReader hr, int len, char* cmd);
+
+void StopUartReader(HReader hr);
+void StopUDPReader(HReader hr);
+void StopTCPReader(HReader hr);
+
 
 #endif
