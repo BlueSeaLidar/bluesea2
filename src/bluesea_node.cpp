@@ -921,6 +921,7 @@ int main(int argc, char **argv)
 	if (hard_resample) init_states |= DF_WITH_RESAMPLE;
 	if (with_smooth) init_states |= DF_SMOOTHED;
 	if (with_deshadow) init_states |= DF_DESHADOWED;
+	if(enable_alarm_msg) init_states |= EF_ENABLE_ALARM_MSG;
 
 	HParser parsers[MAX_LIDARS];
 	PubHub* hubs[MAX_LIDARS] = { NULL };
