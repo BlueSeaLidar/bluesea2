@@ -19,7 +19,7 @@
 #include <unistd.h> 
 #include <signal.h>
 #include <pthread.h>
-
+#include"alarm.h"
 #include "reader.h"
 
 struct CmdHeader
@@ -28,15 +28,6 @@ struct CmdHeader
 	unsigned short cmd;
 	unsigned short sn;
 	unsigned short len;
-};
-
-struct LidarNode 
-{
-	HParser hParser;
-	HPublish hPublish;
-	char ip[30];
-	int port;
-	in_addr_t s_addr;
 };
 
 struct UDPInfo 
@@ -382,10 +373,10 @@ void* UdpThreadProc(void* p)
 							delay = clock + 36000000 - ka->world_clock;
 					}
 					//printf("lidar[%d] delay %d\n", id, delay);
-				} else {
+				}else {
 					//printf("udp %02x%02x\n", buf[0], buf[1]);
 					RawData* fans[MAX_FANS];
-					int nfan = ParserRun(info->lidars[id].hParser, nr, (uint8_t*)buf, &(fans[0]));
+					int nfan = ParserRun(info->lidars[id], nr, (uint8_t*)buf, &(fans[0]));
 					//for (int i=0; i<nfan; i++)
 					//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
 					if (nfan > 0) {
