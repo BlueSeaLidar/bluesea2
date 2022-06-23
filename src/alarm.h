@@ -35,5 +35,5 @@ struct LidarAlarm
 	uint32_t reserved[11];
 };
 #define getbit(x,y)   ((x) >> (y)&1)
-#define setbit(x,y) x|=(1<<y)         //将X的第Y位置1
+#define setbit(x,y) x|=(1<<y)         
 #endif
