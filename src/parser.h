@@ -19,6 +19,8 @@
 //#define ANYONE 0x1234abcd
 #define ANYONE -1
 
+
+#include <arpa/inet.h>
 struct DataPoint
 {
 	uint16_t idx;
@@ -49,6 +51,19 @@ struct RawData
 };
 
 typedef void* HParser;
+typedef void* HReader;
+typedef void* HPublish;
+
+
+struct LidarNode 
+{
+	HParser hParser;
+	HPublish hPublish;
+	char ip[30];
+	int port;
+	in_addr_t s_addr;
+};
+
 
 HParser ParserOpen(int raw_bytes, 
 		uint32_t device_ability,
@@ -65,7 +80,7 @@ bool ParserScript(HParser, Script, void*);
 
 int ParserClose(HParser);
 int ParserRunStream(HParser, int len, unsigned char* buf, RawData* fans[]);
-int ParserRun(HParser, int len, unsigned char* buf, RawData* fans[]);
+int ParserRun(LidarNode, int len, unsigned char* buf, RawData* fans[]);
 
 void SetTimeStamp(RawData*); 
 
