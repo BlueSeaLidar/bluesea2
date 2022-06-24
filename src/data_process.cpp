@@ -46,7 +46,7 @@ bool data_process(sensor_msgs::LaserScan& scan)
             get_data(scan, idx-1, d1, e1);
             get_data(scan, idx+1, d2, e2);
             scan.ranges[idx] = (d1+d2)/2;
-            scan.intensities[idx] = 1;
+            scan.intensities[idx] = (e1+e2)/2;
             idx+=2;
         }
         else if (bl1 && bl2 && !br1 && br2 && br3)
@@ -55,9 +55,9 @@ bool data_process(sensor_msgs::LaserScan& scan)
             get_data(scan, idx-1, d1, e1);
             get_data(scan, idx+2, d2, e2);
             scan.ranges[idx] = (d1+d2)/2;
-            scan.intensities[idx] = 1;
+            scan.intensities[idx] = (e1+e2)/2;
             scan.ranges[idx+1] = (d1+d2)/2;
-            scan.intensities[idx+1] = 1;
+            scan.intensities[idx+1] = (e1+e2)/2;
             idx+=2;
         }
         else {
