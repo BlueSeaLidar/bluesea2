@@ -894,6 +894,10 @@ int main(int argc, char **argv)
 	bool from_zero = false;
 	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
 
+
+	bool with_data_proc = false;
+	priv_nh.param("data_proc", with_data_proc, false); // true :data process every frame
+
 	bool Savelog = false;   
 	std::string logPath;
 	priv_nh.param("Savelog", Savelog, false);
@@ -1007,7 +1011,10 @@ int main(int argc, char **argv)
 								with_angle_filter, min_angle, max_angle, 
 								inverted, reversed, zero_shift, from_zero,
 								ts_beg, ts_end, custom_masks);
-						data_process(scan);
+						if (with_data_proc)  
+						{
+						       data_process(scan);
+						}
 						laser_pubs[i].publish(scan); 
 					}
 			
