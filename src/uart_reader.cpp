@@ -37,6 +37,8 @@ struct UartInfo
 	HParser hParser;
 	HPublish hPublish;
 	pthread_t thr;
+	bool isSaveLog;
+	char logPath[256];
 };
 
 
@@ -162,7 +164,8 @@ bool quirk_talk(void* hnd,
 
 	printf("send command : \'%s\' \n", cmd);
 	write(fd, cmd, n);
-			
+	//printf("test:%d  %s\n",info->isSaveLog,info->logPath);
+	saveLog(info->isSaveLog,info->logPath,0,(unsigned char*)cmd,n);
 	char buf[4096*2];
 
 	int nr = read(fd, buf, sizeof(buf));
@@ -188,7 +191,7 @@ bool quirk_talk(void* hnd,
 		}
 	}
 
-
+	saveLog(info->isSaveLog,info->logPath,1,(unsigned char*)buf,nr);
 #if 0
 	char path[256];
 	sprintf(path, "/tmp/%s.dat", hdr_str);
@@ -235,7 +238,7 @@ int UartReader(UartInfo* info)
 				printf("read port error %d\n",  nr);
 				break;
 			} 
-
+			saveLog(info->isSaveLog,info->logPath,1,(unsigned char*)buf,nr);
 			int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
 			//for (int i=0; i<nfan; i++)
 			//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
@@ -311,7 +314,6 @@ int detect_baudrate(const char* port, int* possible_rates)
 void* UartThreadProc(void* p)
 {
 	UartInfo* info = (UartInfo*)p;
-
 	while (1) {
 		if (access(info->port, R_OK)) 
 		{
@@ -347,7 +349,7 @@ void* UartThreadProc(void* p)
 	return NULL;
 }
 
-void* StartUartReader(const char* port, int baudrate, int* rate_list, HParser hParser, HPublish hPublish)
+void* StartUartReader(const char* port, int baudrate, int* rate_list, HParser hParser, HPublish hPublish,bool isSaveLog,const char* logPath)
 {
 	UartInfo* info = new UartInfo;
 
@@ -356,7 +358,8 @@ void* StartUartReader(const char* port, int baudrate, int* rate_list, HParser hP
 	info->rate_list = rate_list;
 	info->hParser = hParser;
 	info->hPublish = hPublish;
-
+	info->isSaveLog = isSaveLog;
+	strcpy(info->logPath, logPath);
 	pthread_create(&info->thr, NULL, UartThreadProc, info); 
 
 	return info;

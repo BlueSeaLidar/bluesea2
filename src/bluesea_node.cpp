@@ -891,7 +891,11 @@ int main(int argc, char **argv)
        	//priv_nh.param("mirror", mirror, 0); // 0: clockwise, 1: counterclockwise
 	bool from_zero = false;
 	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
-       	
+
+	bool Savelog = false;   
+	std::string logPath;
+	priv_nh.param("Savelog", Savelog, false);
+	priv_nh.param("logPath", logPath, std::string("/tmp/1.log"));
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
 	for (int i=0; i<lidar_count; i++)
@@ -943,7 +947,7 @@ int main(int argc, char **argv)
 			printf("[%d] => %d\n", i, rate_list[i]);
 		}
 		rates[rate_list.size()] = 0;
-		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parsers[0], hubs[0]);
+		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parsers[0], hubs[0], Savelog,logPath.c_str());
 	}
 	else if (g_type == "udp") 
 	{
@@ -955,7 +959,7 @@ int main(int argc, char **argv)
 			strcpy(lidars[i].lidar_ip, lidar_ips[i].c_str());
 			lidars[i].lidar_port = lidar_ports[i];
 		}
-		g_reader = StartUDPReader( local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars );
+		g_reader = StartUDPReader( local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars, Savelog,logPath.c_str());
 	}
 	else if (g_type == "tcp") 
 	{

@@ -83,7 +83,7 @@ int ParserRunStream(HParser, int len, unsigned char* buf, RawData* fans[]);
 int ParserRun(LidarNode, int len, unsigned char* buf, RawData* fans[]);
 
 void SetTimeStamp(RawData*); 
-
+void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len);
 extern char g_uuid[32];
 
 

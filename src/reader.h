@@ -17,16 +17,13 @@ struct LidarInfo {
 };
 void PublishData(HPublish, int, RawData**);
 
-HReader StartUartReader(const char* port, int baudrate, int* rate_list, HParser, HPublish);
+HReader StartUartReader(const char* port, int baudrate, int* rate_list, HParser, HPublish,bool isSaveLog,const char* logPath);
 bool SendUartCmd(HReader, int len, char*);
 
 
-HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port, unsigned short listen_port, 
-		bool is_group_listener, const char* group_ip, 
-		HParser hParser, HPublish hPub);
 
 HReader StartUDPReader( unsigned short listen_port, bool is_group_listener, const char* group_ip,
-	int lidar_count, const LidarInfo* lidars);
+	int lidar_count, const LidarInfo* lidars,bool isSaveLog,const char* logPath);
 
 
 bool SendUdpCmd(HReader hr, int id, int len, char* cmd);
@@ -38,6 +35,6 @@ bool SendTcpCmd(HReader hr, int len, char* cmd);
 void StopUartReader(HReader hr);
 void StopUDPReader(HReader hr);
 void StopTCPReader(HReader hr);
-
+void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len);
 
 #endif

@@ -1227,3 +1227,24 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 
 	return true;
 }
+void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len)
+{
+	if (isSaveLog)
+	{
+		FILE *fp = fopen(logPath, "aw");
+		if (fp)
+		{
+			if(type==0)
+				fprintf(fp, "SEND MSG:\t");
+			if(type==1)
+				fprintf(fp, "REV MSG:\t");	
+
+			for (int i = 0; i < len; i++)
+			{
+				fprintf(fp, "%02x\t", buf[i]);
+			}
+			fprintf(fp, "\n");
+			fclose(fp);
+		}
+	}
+}
