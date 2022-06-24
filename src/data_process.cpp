@@ -34,26 +34,36 @@ bool data_process(sensor_msgs::LaserScan& scan)
             continue;
         }
 
-        bool b = true;
-        for (int i=0; i<2 && b; i++)
+        bool bl1 = is_high(scan, idx-1);
+        bool bl2 = is_high(scan, idx-2);
+        bool br1 = is_high(scan, idx+1);
+        bool br2 = is_high(scan, idx+2);
+        bool br3 = is_high(scan, idx+3);
+
+        if ( (bl1 && br1 && br2) || (bl1 && bl2 && br1) )
         {
-            if ( !is_high(scan, idx-i) )
-                b = false;
-            else if (!is_high(scan, idx+1) )
-                b = false;
+            double d1, d2, e1, e2;
+            get_data(scan, idx-1, d1, e1);
+            get_data(scan, idx+1, d2, e2);
+            scan.ranges[idx] = (d1+d2)/2;
+            scan.intensities[idx] = 1;
+            idx+=2;
         }
-        if (!b) {
+        else if (bl1 && bl2 && !br1 && br2 && br3)
+        {
+            double d1, d2, e1, e2;
+            get_data(scan, idx-1, d1, e1);
+            get_data(scan, idx+2, d2, e2);
+            scan.ranges[idx] = (d1+d2)/2;
+            scan.intensities[idx] = 1;
+            scan.ranges[idx+1] = (d1+d2)/2;
+            scan.intensities[idx+1] = 1;
+            idx+=2;
+        }
+        else {
             idx++;
-            continue;
         }
-        double d1, d2, e1, e2;
-        get_data(scan, idx-1, d1, e1);
-        get_data(scan, idx+1, d2, e2);
-
-        scan.ranges[idx] = (d1+d2)/2;
-        scan.intensities[idx] = (e1+e2)/2;
-
-        idx += 2;
+        
     }
     return true;
 }
