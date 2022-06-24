@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include<signal.h>
 #include "reader.h"
+#include "data_process.h"
 
 HReader g_reader = NULL;
 std::string g_type = "uart";
@@ -439,13 +440,14 @@ int time_cmp(const uint32_t* t1, const uint32_t* t2)
 
 
 uint32_t last_ns = 0;
-void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::string& frame_id,
-	       	double min_dist, double max_dist, bool with_filter, double min_ang, double max_ang,
-	       	bool inverted, bool reversed, double zero_shift,
-		bool from_zero, uint32_t* ts_beg, uint32_t* ts_end, 
-		const std::vector<Range> &custom_masks)
+bool PackLaserScan( sensor_msgs::LaserScan& msg,
+ int nfan, RawData** fans, std::string& frame_id,
+  double min_dist, double max_dist, 
+  bool with_filter, double min_ang, double max_ang,
+   bool inverted, bool reversed, double zero_shift,
+    bool from_zero, uint32_t* ts_beg, uint32_t* ts_end, 
+	const std::vector<Range> &custom_masks)
 {
-	sensor_msgs::LaserScan msg;
 	int N = 0;
 	for (int i=0; i<nfan; i++) N += fans[i]->N;
 
@@ -585,7 +587,7 @@ void PublishLaserScan(ros::Publisher& laser_pub, int nfan, RawData** fans, std::
 			}
 		} 
 	}
-	laser_pub.publish(msg); 
+	return true;
 }
 
 void PublishCloud(ros::Publisher& cloud_pub, int nfan, RawData** fans, std::string& frame_id, 
@@ -1000,10 +1002,13 @@ int main(int argc, char **argv)
 					idle = false;
 					if (output_scan) 
 					{
-						PublishLaserScan(laser_pubs[i], n, fans, frame_id, min_dist, max_dist,
+						sensor_msgs::LaserScan scan;
+						PackLaserScan(scan, n, fans, frame_id, min_dist, max_dist,
 								with_angle_filter, min_angle, max_angle, 
 								inverted, reversed, zero_shift, from_zero,
 								ts_beg, ts_end, custom_masks);
+						data_process(scan);
+						laser_pubs[i].publish(scan); 
 					}
 			
 					if (output_cloud) 
