@@ -21,6 +21,7 @@
 
 
 #include <arpa/inet.h>
+#include<string>
 struct DataPoint
 {
 	uint16_t idx;
@@ -84,6 +85,7 @@ int ParserRun(LidarNode, int len, unsigned char* buf, RawData* fans[]);
 
 void SetTimeStamp(RawData*); 
 void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len);
+int mkpathAll(std::string s, mode_t mode);
 extern char g_uuid[32];
 
 

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
+#include<sys/stat.h>
 #include "parser.h"
 #include "alarm.h"
 
@@ -860,19 +861,19 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 			LidarAlarm *msg = (LidarAlarm *)buf;
 			if (msg->hdr.type >= 0x100)
 			{
-				printf("Current Lidar IP:%s,Port:%d  \n",hP.ip,hP.port);
+				printf("Current Lidar IP:%s,Port:%d  \n", hP.ip, hP.port);
 				//说明有LMSG_ALARM报警信息
 				if (getbit(msg->hdr.data, 12) == 1)
 				{
-					printf("ALARM LEVEL:OBSERVE  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type,msg->zone_actived);
+					printf("ALARM LEVEL:OBSERVE  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type, msg->zone_actived);
 				}
 				if (getbit(msg->hdr.data, 13) == 1)
 				{
-					printf("ALARM LEVEL:WARM  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type,msg->zone_actived);
+					printf("ALARM LEVEL:WARM  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type, msg->zone_actived);
 				}
 				if (getbit(msg->hdr.data, 14) == 1)
 				{
-					printf("ALARM LEVEL:ALARM  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type,msg->zone_actived);
+					printf("ALARM LEVEL:ALARM  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type, msg->zone_actived);
 				}
 				if (getbit(msg->hdr.data, 15) == 1)
 				{
@@ -909,7 +910,7 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 				//说明有LMSG_ERROR报错信息
 				if (msg->hdr.type % 2 == 1)
 				{
-					
+
 					if (getbit(msg->hdr.data, 0) == 1)
 					{
 						printf("LIDAR LOW POWER  MSG TYPE:%d\n", msg->hdr.type);
@@ -1227,17 +1228,17 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 
 	return true;
 }
-void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len)
+void saveLog(bool isSaveLog, const char *logPath, int type, const unsigned char *buf, unsigned int len)
 {
 	if (isSaveLog)
 	{
 		FILE *fp = fopen(logPath, "aw");
 		if (fp)
 		{
-			if(type==0)
+			if (type == 0)
 				fprintf(fp, "SEND MSG:\t");
-			if(type==1)
-				fprintf(fp, "REV MSG:\t");	
+			if (type == 1)
+				fprintf(fp, "REV MSG:\t");
 
 			for (int i = 0; i < len; i++)
 			{
@@ -1247,4 +1248,30 @@ void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,
 			fclose(fp);
 		}
 	}
+}
+
+int mkpathAll(std::string s, mode_t mode = 0755)
+{
+	size_t pre = 0, pos;
+	std::string dir;
+	int mdret;
+
+	if (s[s.size() - 1] != '/')
+	{
+		// force trailing / so we can handle everything in loop
+		s += '/';
+	}
+
+	while ((pos = s.find_first_of('/', pre)) != std::string::npos)
+	{
+		dir = s.substr(0, pos++);
+		pre = pos;
+		if (dir.size() == 0)
+			continue; // if leading / first time is 0 length
+		if ((mdret = ::mkdir(dir.c_str(), mode)) && errno != EEXIST)
+		{
+			return mdret;
+		}
+	}
+	return mdret;
 }
