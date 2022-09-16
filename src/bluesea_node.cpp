@@ -41,10 +41,9 @@ struct PubHub
 
 void closeSignal(int sig)
 {
-	//这里主�?�进行退出前的数�?保存、内存清理、告知其他节点等工作
 	ROS_INFO("shutting down!");
 	ros::shutdown();
-	exit(0);
+	exit(1);
 }
 
 bool SendCmd(int len, char *cmd, int index)
@@ -52,6 +51,10 @@ bool SendCmd(int len, char *cmd, int index)
 	if (g_type == "uart")
 	{
 		return SendUartCmd(g_reader, len, cmd);
+	}
+	else if(g_type == "vpc")
+	{
+		return SendVpcCmd(g_reader, len, cmd);
 	}
 	else if (g_type == "udp")
 	{
@@ -83,22 +86,22 @@ void PublishData(HPublish pub, int n, RawData **fans)
 
 	pthread_mutex_lock(&hub->mtx);
 
-	if (hub->nfan + n > MAX_FANS) 
+	if (hub->nfan + n > MAX_FANS)
 	{
 		int nr = hub->nfan + n - MAX_FANS;
 
-		for (int i=0; i<nr; i++)
+		for (int i = 0; i < nr; i++)
 			drop[skip++] = hub->fans[i];
 
-		for (int i=nr; i<hub->nfan; i++)
+		for (int i = nr; i < hub->nfan; i++)
 		{
-			hub->fans[i-nr] = hub->fans[i];
+			hub->fans[i - nr] = hub->fans[i];
 		}
 
 		hub->nfan -= nr;
 	}
 
-	for (int i=0; i<n; i++) 
+	for (int i = 0; i < n; i++)
 	{
 		hub->fans[hub->nfan++] = fans[i];
 	}
@@ -329,23 +332,22 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 	double min_deg = min_ang * 180 / M_PI;
 	double max_deg = max_ang * 180 / M_PI;
 	int N = fan->N;
-	
-	if(zero_shift>M_PI||zero_shift<-M_PI)
+
+	if (zero_shift > M_PI || zero_shift < -M_PI)
 	{
-		int num = zero_shift/M_PI;
-		zero_shift=zero_shift-num*M_PI;
-	}	
-	if(zero_shift!=0)
-	{
-		double zero_shift_tmp=zero_shift* 180 / M_PI;
-		for (int i = 0; i <N; i++)
-		{
-			double deg =fan->points[i].degree+zero_shift_tmp;
-			fan->points[i].degree=deg;
-		}
-	
+		int num = zero_shift / M_PI;
+		zero_shift = zero_shift - num * M_PI;
 	}
-	
+	if (zero_shift != 0)
+	{
+		double zero_shift_tmp = zero_shift * 180 / M_PI;
+		for (int i = 0; i < N; i++)
+		{
+			double deg = fan->points[i].degree + zero_shift_tmp;
+			fan->points[i].degree = deg;
+		}
+	}
+
 	double min_pos, max_pos;
 	if (with_filter)
 	{
@@ -401,8 +403,8 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 		msg.angle_increment = -(fan->span * M_PI / 1800) / fan->N;
 	}
 
-	//msg.angle_min += zero_shift;
-	//msg.angle_max += zero_shift;
+	// msg.angle_min += zero_shift;
+	// msg.angle_max += zero_shift;
 
 	N = 0;
 	if (reversed)
@@ -495,22 +497,22 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 {
 	sensor_msgs::LaserScan msg;
 	int N = 0;
-	if(zero_shift>M_PI||zero_shift<-M_PI)
+	if (zero_shift > M_PI || zero_shift < -M_PI)
 	{
-		int num = zero_shift/M_PI;
-		zero_shift=zero_shift-num*M_PI;
+		int num = zero_shift / M_PI;
+		zero_shift = zero_shift - num * M_PI;
 	}
-		
-	double zero_shift_tmp=zero_shift* 180 / M_PI;
+
+	double zero_shift_tmp = zero_shift * 180 / M_PI;
 	for (int j = 0; j < nfan; j++)
 	{
 		N += fans[j]->N;
-		if(zero_shift==0)
+		if (zero_shift == 0)
 			continue;
 		for (int i = 0; i < fans[j]->N; i++)
 		{
-			double deg =fans[j]->points[i].degree+zero_shift_tmp;
-			fans[j]->points[i].degree=deg;
+			double deg = fans[j]->points[i].degree + zero_shift_tmp;
+			fans[j]->points[i].degree = deg;
 		}
 	}
 
@@ -531,8 +533,8 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 	msg.range_min = min_dist;
 	msg.range_max = max_dist; // 8.0;
 
-	//min_deg -= zero_shift* 180 / M_PI;
-	//max_deg -= zero_shift* 180 / M_PI;
+	// min_deg -= zero_shift* 180 / M_PI;
+	// max_deg -= zero_shift* 180 / M_PI;
 	if (with_filter)
 	{
 		double min_pos, max_pos;
@@ -541,7 +543,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 		{
 			msg.angle_min = min_pos * M_PI / 180;
 			msg.angle_max = max_pos * M_PI / 180;
-			//printf("data1:deg:%lf   %lf  angle:%lf   %lf   %d\n",min_deg,max_deg,msg.angle_min,msg.angle_max,N);
+			// printf("data1:deg:%lf   %lf  angle:%lf   %lf   %d\n",min_deg,max_deg,msg.angle_min,msg.angle_max,N);
 		}
 		else
 		{
@@ -584,9 +586,9 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 		}
 	}
 
-	//msg.angle_min += zero_shift;
-	//msg.angle_max += zero_shift;
-	//printf("angle:%lf   %lf   %d\n",msg.angle_min,msg.angle_max,N);
+	// msg.angle_min += zero_shift;
+	// msg.angle_max += zero_shift;
+	// printf("angle:%lf   %lf   %d\n",msg.angle_min,msg.angle_max,N);
 
 	if (fans[0]->counterclockwise != 0)
 	{
@@ -600,7 +602,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 
 	msg.intensities.resize(N);
 	msg.ranges.resize(N);
-	
+
 	N = 0;
 	if (reversed)
 	{
@@ -644,7 +646,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			for (int i = 0; i < fans[j]->N; i++)
 			{
 				double deg = ROSAng(fans[j]->points[i].degree);
-				
+
 				if (with_filter)
 				{
 					if (deg < min_deg)
@@ -666,13 +668,12 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 				else
 					msg.ranges[N] = d;
 
-				
 				msg.intensities[N] = fans[j]->points[i].confidence;
 				N++;
 			}
 		}
 	}
-	
+
 	laser_pub.publish(msg);
 }
 
@@ -810,9 +811,8 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "bluesea2_laser_publisher");
 	ros::NodeHandle node_handle;
 	ros::NodeHandle priv_nh("~");
-
+	signal(SIGINT, closeSignal);
 	// std_msgs::UInt16 rpms;
-
 	// LiDAR comm type, could be "uart" or "udp"
 	priv_nh.param("type", g_type, std::string("uart"));
 	printf("type is %s\n", g_type.c_str());
@@ -848,9 +848,9 @@ int main(int argc, char **argv)
 
 	std::string lidar_ips[MAX_LIDARS];
 	priv_nh.param("lidar_ip", lidar_ips[0], std::string("192.168.158.91"));
-	
-	//printf("123:%s lidars\n", lidar_ips[0].c_str());
-	
+
+	// printf("123:%s lidars\n", lidar_ips[0].c_str());
+
 	std::string laser_topics[MAX_LIDARS];
 	std::string cloud_topics[MAX_LIDARS];
 	priv_nh.param("topic", laser_topics[0], std::string("scan"));
@@ -988,7 +988,7 @@ int main(int argc, char **argv)
 	bool Savelog = false;
 	std::string logPathTmp;
 	priv_nh.param("Savelog", Savelog, false);
-	//Synthesize the full  log path
+	// Synthesize the full  log path
 	priv_nh.param("logPath", logPathTmp, std::string("/opt/log"));
 	char logPath[256] = {0};
 	struct stat buffer;
@@ -1001,8 +1001,9 @@ int main(int argc, char **argv)
 	time(&now);
 	tm_now = localtime(&now);
 
-	sprintf(logPath, "%slog_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year+1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
+	sprintf(logPath, "%slog_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year + 1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
+	// Synthesize the full  log path
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
 	for (int i = 0; i < lidar_count; i++)
@@ -1052,7 +1053,7 @@ int main(int argc, char **argv)
 		pthread_mutex_init(&hubs[i]->mtx, NULL);
 	}
 
-	if (g_type == "uart")
+	if (g_type == "uart" || g_type == "vpc")
 	{
 		int *rates = new int[rate_list.size() + 1];
 		for (int i = 0; i < rate_list.size(); i++)
@@ -1061,7 +1062,7 @@ int main(int argc, char **argv)
 			printf("[%d] => %d\n", i, rate_list[i]);
 		}
 		rates[rate_list.size()] = 0;
-		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parsers[0], hubs[0], Savelog, logPath);
+		g_reader = StartUartReader(g_type.c_str(), port.c_str(), baud_rate, rates, parsers[0], hubs[0], Savelog, logPath);
 	}
 	else if (g_type == "udp")
 	{
@@ -1107,6 +1108,7 @@ int main(int argc, char **argv)
 			}
 			else
 			{
+				// printf("%s %d %d \n",__FUNCTION__,__LINE__,hubs[i]->nfan);
 				uint32_t ts_beg[2], ts_end[2];
 				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
 				if (n > 0)

@@ -17,9 +17,9 @@ struct LidarInfo {
 };
 void PublishData(HPublish, int, RawData**);
 
-HReader StartUartReader(const char* port, int baudrate, int* rate_list, HParser, HPublish,bool isSaveLog,const char* logPath);
+HReader StartUartReader(const char* type ,const char* port, int baudrate, int* rate_list, HParser, HPublish,bool isSaveLog,const char* logPath);
 bool SendUartCmd(HReader, int len, char*);
-
+bool SendVpcCmd(HReader hr, int len, char* cmd);
 
 
 HReader StartUDPReader( unsigned short listen_port, bool is_group_listener, const char* group_ip,

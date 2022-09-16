@@ -112,6 +112,35 @@ short LidarAng2ROS(short ang)
 	return ang >= 1800 ? ang - 3600 : ang;
 }
 #endif
+// CRC32
+unsigned int stm32crc(unsigned int *ptr, unsigned int len)
+{
+	unsigned int xbit, data;
+	unsigned int crc32 = 0xFFFFFFFF;
+	const unsigned int polynomial = 0x04c11db7;
+
+	for (unsigned int i = 0; i < len; i++)
+	{
+		xbit = 1 << 31;
+		data = ptr[i];
+		for (unsigned int bits = 0; bits < 32; bits++)
+		{
+			if (crc32 & 0x80000000)
+			{
+				crc32 <<= 1;
+				crc32 ^= polynomial;
+			}
+			else
+				crc32 <<= 1;
+
+			if (data & xbit)
+				crc32 ^= polynomial;
+
+			xbit >>= 1;
+		}
+	}
+	return crc32;
+}
 
 static uint32_t update_flags(unsigned char *buf)
 {
@@ -326,8 +355,6 @@ static RawData *PackFanData(FanSegment *seg)
 	dat->counterclockwise = 0;
 
 	DecTimestamp(seg->hdr.timestamp, dat->ts);
-	// printf("%d %d.%d\n", dat->angle, dat->ts[0], dat->ts[1]);
-
 	int count = 0;
 	while (seg)
 	{
@@ -611,6 +638,11 @@ static int MsgProc(Parser *parser, int len, unsigned char *buf)
 	if (len >= 8 && buf[0] == 'S' && buf[1] == 'T' && buf[6] == 'E' && buf[7] == 'D')
 	{
 		parser->flags = update_flags(buf + 2);
+		return 0;
+	}
+	else if(alarmProc(buf,len))
+	{
+		return 0;
 	}
 	else
 	{
@@ -816,6 +848,7 @@ int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 	int nfan = MAX_FANS;
 
 	unsigned char *buf = new unsigned char[len + parser->rest_len];
+	memset(buf,0,sizeof(len + parser->rest_len));
 	if (!buf)
 	{
 		printf("out of memory\n");
@@ -848,12 +881,8 @@ int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 
 	return nfan;
 }
-
-int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
+int alarmProc(unsigned char *buf,int len)
 {
-	Parser *parser = (Parser *)hP.hParser;
-
-	uint8_t type = buf[0];
 	//报警信息打印
 	if (memcmp(buf, "LMSG", 4) == 0)
 	{
@@ -862,7 +891,6 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 			LidarAlarm *msg = (LidarAlarm *)buf;
 			if (msg->hdr.type >= 0x100)
 			{
-				printf("Current Lidar IP:%s,Port:%d  \n", hP.ip, hP.port);
 				//说明有LMSG_ALARM报警信息
 				if (getbit(msg->hdr.data, 12) == 1)
 				{
@@ -936,8 +964,18 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 			}
 		}
 
-		return 0;
+		return 1;
 	}
+	return 0;
+}
+int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
+{
+	Parser *parser = (Parser *)hP.hParser;
+
+	uint8_t type = buf[0];
+	//报警信息打印
+	if(alarmProc(buf,len))
+		return 0;
 
 	if (buf[1] != 0xfa)
 	{
@@ -1098,12 +1136,13 @@ char g_uuid[32] = "";
 bool ParserScript(HParser hP, Script script, void *hnd)
 {
 	Parser *parser = (Parser *)hP;
-
+	unsigned int index=5;
 	// read device's UUID
 	char buf[32];
+	script(hnd, 6, "LSTARH", 11, "PRODUCT SN:", 16, buf);
 	if (parser->device_ability & DF_WITH_UUID)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			if (script(hnd, 6, "LUUIDH", 11, "PRODUCT SN:", 16, buf))
 			{
@@ -1123,7 +1162,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 	// setup output data format
 	if (parser->device_ability & DF_UNIT_IS_MM)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_UNIT_IS_MM) ? "LMDMMH" : "LMDCMH";
 			if (script(hnd, 6, cmd, 10, "SET LiDAR ", 9, buf))
@@ -1137,7 +1176,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 	// enable/disable output intensity
 	if (parser->device_ability & DF_WITH_INTENSITY)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_WITH_INTENSITY) ? "LOCONH" : "LNCONH";
 			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf))
@@ -1151,7 +1190,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 	// enable/disable shadow filter
 	if (parser->device_ability & DF_DESHADOWED)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LFFF1H" : "LFFF0H";
 			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf))
@@ -1165,7 +1204,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 	// enable/disable smooth
 	if (parser->device_ability & DF_SMOOTHED)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSS1H" : "LSSS0H";
 			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf))
@@ -1179,7 +1218,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 	// setup rpm
 	if (parser->init_rpm > 300 && parser->init_rpm < 3000)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			char cmd[32];
 			sprintf(cmd, "LSRPM:%dH", parser->init_rpm);
@@ -1194,7 +1233,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 	// set hard resample
 	if (parser->device_ability & DF_WITH_RESAMPLE)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			char cmd[32] = "LSRES:001H";
 			if (parser->init_states & DF_WITH_RESAMPLE)
@@ -1217,7 +1256,7 @@ bool ParserScript(HParser hP, Script script, void *hnd)
 		char cmd[32];
 		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
 
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < index; i++)
 		{
 			if (script(hnd, strlen(cmd), cmd, 0, NULL, 0, NULL))
 			{

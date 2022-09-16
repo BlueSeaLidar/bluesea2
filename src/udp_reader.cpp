@@ -22,14 +22,6 @@
 #include "alarm.h"
 #include "reader.h"
 
-struct CmdHeader
-{
-	unsigned short sign;
-	unsigned short cmd;
-	unsigned short sn;
-	unsigned short len;
-};
-
 struct UDPInfo
 {
 	int nnode;
@@ -58,35 +50,6 @@ struct KeepAlive
 	uint32_t reserved[4];
 };
 
-// CRC32
-unsigned int stm32crc(unsigned int *ptr, unsigned int len)
-{
-	unsigned int xbit, data;
-	unsigned int crc32 = 0xFFFFFFFF;
-	const unsigned int polynomial = 0x04c11db7;
-
-	for (unsigned int i = 0; i < len; i++)
-	{
-		xbit = 1 << 31;
-		data = ptr[i];
-		for (unsigned int bits = 0; bits < 32; bits++)
-		{
-			if (crc32 & 0x80000000)
-			{
-				crc32 <<= 1;
-				crc32 ^= polynomial;
-			}
-			else
-				crc32 <<= 1;
-
-			if (data & xbit)
-				crc32 ^= polynomial;
-
-			xbit >>= 1;
-		}
-	}
-	return crc32;
-}
 
 //
 bool send_cmd_udp_f(int fd_udp, const char *dev_ip, int dev_port,

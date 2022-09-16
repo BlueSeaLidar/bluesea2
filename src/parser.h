@@ -30,6 +30,13 @@ struct DataPoint
 	uint16_t distance; // mm
 	uint8_t confidence; 
 };
+struct CmdHeader
+{
+	unsigned short sign;
+	unsigned short cmd;
+	unsigned short sn;
+	unsigned short len;
+};
 
 struct RawData
 {
@@ -86,6 +93,8 @@ int ParserRun(LidarNode, int len, unsigned char* buf, RawData* fans[]);
 void SetTimeStamp(RawData*); 
 void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len);
 int mkpathAll(std::string s, mode_t mode);
+unsigned int stm32crc(unsigned int *ptr, unsigned int len);
+int alarmProc(unsigned char *buf,int len);
 extern char g_uuid[32];
 
 
