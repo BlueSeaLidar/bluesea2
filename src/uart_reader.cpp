@@ -184,17 +184,18 @@ bool uart_talk(void *hnd,
 			usleep(100 * 1000);
 		// ros::Duration(0.1).sleep();
 	}
-
 	for (int i = 0; i < nr - nhdr - nfetch; i++)
 	{
 		if (memcmp(buf + i, hdr_str, nhdr) == 0)
 		{
-			memcpy(fetch, buf + i + nhdr, nfetch);
-			fetch[nfetch] = 0;
+			if (nfetch > 0)
+			{
+				memcpy(fetch, buf + i + nhdr, nfetch);
+				fetch[nfetch] = 0;
+			}
 			return true;
 		}
 	}
-
 	saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, nr);
 	printf("read %d bytes, not found %s\n", nr, hdr_str);
 	return false;
@@ -242,18 +243,21 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 		{
 			if (buf[i] == 0x4C && buf[i + 1] == 0x48 && buf[i + 2] == (signed char)0xBC && buf[i + 3] == (signed char)0xFF)
 			{
-				for (int j = 0; j < nfetch; j++)
+				if (nfetch > 0)
 				{
-					if ((buf[i + j + 8] >= 33 && buf[i + j + 8] <= 127))
+					for (int j = 0; j < nfetch; j++)
 					{
-						fetch[j] = buf[i + j + 8];
+						if ((buf[i + j + 8] >= 33 && buf[i + j + 8] <= 127))
+						{
+							fetch[j] = buf[i + j + 8];
+						}
+						else
+						{
+							fetch[j] = ' ';
+						}
 					}
-					else
-					{
-						fetch[j] = ' ';
-					}
+					fetch[nfetch] = 0;
 				}
-				fetch[nfetch] = 0;
 				return true;
 			}
 		}
@@ -403,9 +407,9 @@ void *UartThreadProc(void *p)
 		{
 			info->fd_uart = fd;
 			if (strcmp(info->type, "uart") == 0)
-				ParserScript(info->hParser, uart_talk, info);
+				ParserScript(info->hParser, uart_talk, NULL, info->type, info);
 			if (strcmp(info->type, "vpc") == 0)
-				ParserScript(info->hParser, vpc_talk, info);
+				ParserScript(info->hParser, vpc_talk, NULL, info->type, info);
 
 			UartReader(info);
 		}

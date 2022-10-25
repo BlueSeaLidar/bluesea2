@@ -239,7 +239,10 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 		int total = fans[0]->span;
 		ts_beg[0] = fans[0]->ts[0];
 		ts_beg[1] = fans[0]->ts[1];
-		// printf("ts = %d.%d\n",fans[0]->ts[0],fans[0]->ts[1]);
+		
+		//std::cout<<"ts:"<<fans[0]->ts[0]<<" "<<fans[0]->ts[1]<<std::endl;
+		//std::cout<<"ROS Time:"<<ros::Time::now()<<std::endl;
+		
 		for (int i = 0; i < cnt - 1; i++)
 		{
 			if (fans[i]->angle + fans[i]->span != fans[i + 1]->angle &&
@@ -771,7 +774,8 @@ uint32_t get_device_ability(const std::string &platform)
 			DF_SMOOTHED |
 			DF_WITH_RESAMPLE |
 			DF_WITH_UUID |
-			EF_ENABLE_ALARM_MSG;
+			EF_ENABLE_ALARM_MSG|
+			DF_WITH_RPM;
 	}
 	else if (platform == "LDS-50C-2")
 	{
@@ -779,11 +783,12 @@ uint32_t get_device_ability(const std::string &platform)
 			   DF_WITH_INTENSITY |
 			   DF_DESHADOWED |
 			   DF_SMOOTHED |
-			   DF_WITH_UUID;
+			   DF_WITH_UUID|
+			   DF_WITH_RPM;
 	}
 	else if (platform == "LDS-50C-S")
 	{
-		return DF_UNIT_IS_MM | DF_WITH_INTENSITY;
+		return DF_UNIT_IS_MM | DF_WITH_INTENSITY|DF_WITH_RPM;
 	}
 
 	// printf("set with uuid\n");
@@ -1029,6 +1034,7 @@ int main(int argc, char **argv)
 
 	//
 	uint32_t init_states = 0;
+	
 	if (unit_is_mm)
 		init_states |= DF_UNIT_IS_MM;
 	if (with_confidence)
@@ -1041,7 +1047,7 @@ int main(int argc, char **argv)
 		init_states |= DF_DESHADOWED;
 	if (enable_alarm_msg)
 		init_states |= EF_ENABLE_ALARM_MSG;
-
+	
 	HParser parsers[MAX_LIDARS];
 	PubHub *hubs[MAX_LIDARS] = {NULL};
 	for (int i = 0; i < lidar_count; i++)
@@ -1074,7 +1080,7 @@ int main(int argc, char **argv)
 			strcpy(lidars[i].lidar_ip, lidar_ips[i].c_str());
 			lidars[i].lidar_port = lidar_ports[i];
 		}
-		g_reader = StartUDPReader(local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars, Savelog, logPath);
+		g_reader = StartUDPReader(g_type.c_str(),local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars, Savelog, logPath);
 	}
 	else if (g_type == "tcp")
 	{
