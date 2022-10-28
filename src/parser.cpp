@@ -290,7 +290,7 @@ static int GetFanPointCount(FanSegment *seg)
 
 static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pdat)
 {
-	if (parser->dev_id != ANYONE && hdr.dev_id != parser->dev_id)
+	if (parser->dev_id != (u_int32_t)ANYONE && hdr.dev_id != parser->dev_id)
 	{
 		static time_t last = 0;
 		time_t t = time(NULL);
@@ -354,7 +354,7 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 
 	// if (parser->fan_segs == NULL) { return NULL; }
 
-	int N = GetFanPointCount(parser->fan_segs);
+	unsigned int N = GetFanPointCount(parser->fan_segs);
 
 	if (N >= parser->fan_segs->hdr.whole_fan)
 	{
@@ -889,9 +889,9 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 	{
 		PacketUart hdr;
 		memcpy(&hdr, buf, sizeof(PacketUart));
-		if (len >= hdr.len + sizeof(PacketUart))
+		if ((unsigned int)len >= hdr.len + sizeof(PacketUart))
 		{
-			if (parser->dev_id != ANYONE && hdr.dev_id != parser->dev_id)
+			if (parser->dev_id != (u_int32_t)ANYONE && hdr.dev_id != parser->dev_id)
 			{
 				// not my data
 				return 0;
@@ -1046,10 +1046,10 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	{
 		printf("set LiDAR LSTARH OK\n");
 	}
-	printf("%d\n",__LINE__);
+	// printf("%d\n",__LINE__);
 	if (parser->device_ability & DF_WITH_UUID)
 	{
-		for (int i = 0; i < index; i++)
+		for (unsigned int i = 0; i < index; i++)
 		{
 			if (script(hnd, 6, "LUUIDH", 11, "PRODUCT SN:", 16, buf))
 			{
@@ -1069,12 +1069,12 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	// setup output data format
 	if (parser->device_ability & DF_UNIT_IS_MM)
 	{
-		for (int i = 0; i < index; i++)
+		for (unsigned int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_UNIT_IS_MM) ? "LMDMMH" : "LMDCMH";
 			if (script(hnd, 6, cmd, 10, "SET LiDAR ", 9, buf))
 			{
-				printf("set LiDAR unit %s OK\n",cmd);
+				printf("set LiDAR unit %s OK\n", cmd);
 				break;
 			}
 		}
@@ -1083,7 +1083,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	// enable/disable output intensity
 	if (parser->device_ability & DF_WITH_INTENSITY)
 	{
-		for (int i = 0; i < index; i++)
+		for (unsigned int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_WITH_INTENSITY) ? "LOCONH" : "LNCONH";
 			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf))
@@ -1099,24 +1099,24 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	{
 		if (strcmp(type, "udp") == 0)
 		{
-			for (int i = 0; i < index; i++)
+			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LSDSW:1H" : "LSDSW:0H";
 				if (s_pack(hnd, strlen(cmd), cmd))
 				{
-					printf("set LiDAR shadow filter %s OK\n",cmd);
+					printf("set LiDAR shadow filter %s OK\n", cmd);
 					break;
 				}
 			}
 		}
 		else
 		{
-			for (int i = 0; i < index; i++)
+			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LFFF1H" : "LFFF0H";
 				if (script(hnd, 6, cmd, 6, "LiDAR ", 0, NULL))
 				{
-					printf("set LiDAR shadow filter %s OK\n",cmd);
+					printf("set LiDAR shadow filter %s OK\n", cmd);
 					break;
 				}
 			}
@@ -1128,19 +1128,19 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	{
 		if (strcmp(type, "udp") == 0)
 		{
-			for (int i = 0; i < index; i++)
+			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSMT:1H" : "LSSMT:0H";
 				if (s_pack(hnd, strlen(cmd), cmd))
 				{
-					printf("set LiDAR smooth  %s OK\n",cmd);
+					printf("set LiDAR smooth  %s OK\n", cmd);
 					break;
 				}
 			}
 		}
 		else
 		{
-			for (int i = 0; i < index; i++)
+			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSS1H" : "LSSS0H";
 				if (script(hnd, 6, cmd, 6, "LiDAR ", 0, NULL))
@@ -1158,7 +1158,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	{
 		if (parser->init_rpm > 300 && parser->init_rpm < 3000)
 		{
-			for (int i = 0; i < index; i++)
+			for (unsigned int i = 0; i < index; i++)
 			{
 				char cmd[32];
 				sprintf(cmd, "LSRPM:%dH", parser->init_rpm);
@@ -1184,7 +1184,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 
 	if (parser->device_ability & DF_WITH_RESAMPLE)
 	{
-		for (int i = 0; i < index; i++)
+		for (unsigned int i = 0; i < index; i++)
 		{
 			char cmd[32] = "";
 			if (parser->init_states & DF_WITH_RESAMPLE)
@@ -1197,13 +1197,12 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 				{
 					sprintf(cmd, "LSRES:%03dH", int(parser->resample_res * 1000));
 				}
-			}
-
-			char pattern[] = "set resolution ";
-			if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf))
-			{
-				printf("set resolution %s\n", buf);
-				break;
+				char pattern[] = "set resolution ";
+				if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf))
+				{
+					printf("set resolution %s\n", buf);
+					break;
+				}
 			}
 		}
 	}
@@ -1212,7 +1211,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	{
 		char cmd[32];
 		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
-		for (int i = 0; i < index; i++)
+		for (unsigned int i = 0; i < index; i++)
 		{
 			if (s_pack(hnd, strlen(cmd), cmd))
 			{
@@ -1236,7 +1235,7 @@ void saveLog(bool isSaveLog, const char *logPath, int type, const unsigned char 
 			if (type == 1)
 				fprintf(fp, "REV MSG:\t");
 
-			for (int i = 0; i < len; i++)
+			for (unsigned int i = 0; i < len; i++)
 			{
 				fprintf(fp, "%02x\t", buf[i]);
 			}
