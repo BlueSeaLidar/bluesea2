@@ -230,7 +230,7 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 	//读取之后的10*2048个长度，如果不存在即判定失败
 	while (index--)
 	{
-		int nr = read(fd, buf, sizeof(buf));
+		unsigned int nr = read(fd, buf, sizeof(buf));
 		// printf("%d %d \n",sizeof(buf),nr);
 		while (nr < sizeof(buf))
 		{
@@ -247,7 +247,7 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 				{
 					for (int j = 0; j < nfetch; j++)
 					{
-						if ((buf[i + j + 8] >= 33 && buf[i + j + 8] <= 127))
+						if (buf[i + j + 8] >= 33 /*&& buf[i + j + 8] <= 127*/)
 						{
 							fetch[j] = buf[i + j + 8];
 						}
@@ -292,7 +292,7 @@ int UartReader(UartInfo *info)
 		if (FD_ISSET(fd_uart, &fds))
 		{
 			unsigned char buf[512];
-			int nr = read(fd_uart, buf, sizeof(buf));
+			unsigned int nr = read(fd_uart, buf, sizeof(buf));
 			if (nr <= 0)
 			{
 				printf("read port error %d\n", nr);
@@ -465,11 +465,19 @@ bool SendVpcCmd(HReader hr, int len, char *cmd)
 
 		memcpy(buffer + sizeof(CmdHeader), cmd, len);
 
-		int n = sizeof(CmdHeader);
+		//int n = sizeof(CmdHeader);
 		unsigned int *pcrc = (unsigned int *)(buffer + sizeof(CmdHeader) + len);
 		pcrc[0] = stm32crc((unsigned int *)(buffer + 0), len / 4 + 2);
 		int len2 = len + sizeof(CmdHeader) + 4;
 		write(fd, buffer, len2);
 	}
 	return true;
+}
+void StopUartReader(HReader hr)
+{
+	UartInfo* info = (UartInfo*)hr;
+	//info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+	delete info;
 }

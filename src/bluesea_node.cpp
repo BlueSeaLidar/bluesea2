@@ -1,4 +1,3 @@
-
 /*********************************************************************
  * Lanhai ROS driver
  * serial port version  LDS-25:
@@ -15,6 +14,7 @@
 #include <std_msgs/UInt16.h>
 #include <std_srvs/Empty.h>
 #include <bluesea2/Control.h>
+#include <bluesea2/DefenceZone.h>
 #include <dynamic_reconfigure/server.h>
 #include <bluesea2/DynParamsConfig.h>
 #include <time.h>
@@ -52,7 +52,7 @@ bool SendCmd(int len, char *cmd, int index)
 	{
 		return SendUartCmd(g_reader, len, cmd);
 	}
-	else if(g_type == "vpc")
+	else if (g_type == "vpc")
 	{
 		return SendVpcCmd(g_reader, len, cmd);
 	}
@@ -172,23 +172,23 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 {
 	bool got = false;
 	PubHub *hub = (PubHub *)pub;
-
-	pthread_mutex_lock(&hub->mtx);
-
 	if (hub->nfan > 0)
 	{
+		pthread_mutex_lock(&hub->mtx);
 		fans[0] = hub->fans[0];
 		for (int i = 1; i < hub->nfan; i++)
 			hub->fans[i - 1] = hub->fans[i];
 		hub->nfan--;
 		got = true;
+		pthread_mutex_unlock(&hub->mtx);
 	}
-
-	pthread_mutex_unlock(&hub->mtx);
-
+	else
+		return false;
+	
 	if (with_resample) // && resample_res > 0.05)
 	{
 		int NN = fans[0]->span / (10 * resample_res);
+
 		if (NN < fans[0]->N)
 		{
 			resample(fans[0], NN);
@@ -198,7 +198,6 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 			printf("fan %d less than %d\n", fans[0]->N, NN);
 		}
 	}
-
 	return got;
 }
 
@@ -239,10 +238,10 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 		int total = fans[0]->span;
 		ts_beg[0] = fans[0]->ts[0];
 		ts_beg[1] = fans[0]->ts[1];
-		
-		//std::cout<<"ts:"<<fans[0]->ts[0]<<" "<<fans[0]->ts[1]<<std::endl;
-		//std::cout<<"ROS Time:"<<ros::Time::now()<<std::endl;
-		
+
+		// std::cout<<"ts:"<<fans[0]->ts[0]<<" "<<fans[0]->ts[1]<<std::endl;
+		// std::cout<<"ROS Time:"<<ros::Time::now()<<std::endl;
+
 		for (int i = 0; i < cnt - 1; i++)
 		{
 			if (fans[i]->angle + fans[i]->span != fans[i + 1]->angle &&
@@ -764,7 +763,22 @@ bool start_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &r
 	ROS_INFO("Start motor  index:%ld", req.index);
 	return SendCmd(6, cmd, req.index);
 }
-
+bool switchZone_motor(bluesea2::DefenceZone::Request &req, bluesea2::DefenceZone::Response &res)
+{
+	char cmd[12]={0};
+	sprintf(cmd,"LSAZN:%xH",req.index);
+	ROS_INFO("DefenceZone motor  cmd:%s,ip:%s", cmd, req.ip.c_str());
+	int index = req.index;
+	if (index < 0)
+	{
+		return false;
+	}
+	else
+	{	
+		return SendUdpCmd2(g_reader, (char*)req.ip.c_str(), 12, cmd);;
+	}
+	return false;
+}
 uint32_t get_device_ability(const std::string &platform)
 {
 	if (platform == "LDS-50C-E")
@@ -774,7 +788,7 @@ uint32_t get_device_ability(const std::string &platform)
 			DF_SMOOTHED |
 			DF_WITH_RESAMPLE |
 			DF_WITH_UUID |
-			EF_ENABLE_ALARM_MSG|
+			EF_ENABLE_ALARM_MSG |
 			DF_WITH_RPM;
 	}
 	else if (platform == "LDS-50C-2")
@@ -783,12 +797,12 @@ uint32_t get_device_ability(const std::string &platform)
 			   DF_WITH_INTENSITY |
 			   DF_DESHADOWED |
 			   DF_SMOOTHED |
-			   DF_WITH_UUID|
+			   DF_WITH_UUID |
 			   DF_WITH_RPM;
 	}
 	else if (platform == "LDS-50C-S")
 	{
-		return DF_UNIT_IS_MM | DF_WITH_INTENSITY|DF_WITH_RPM;
+		return DF_UNIT_IS_MM | DF_WITH_INTENSITY | DF_WITH_RPM;
 	}
 
 	// printf("set with uuid\n");
@@ -950,10 +964,9 @@ int main(int argc, char **argv)
 														// false: publish every RawData (36 degree)
 
 	// RPM
-	int init_rpm;
+	int init_rpm = 0;
 	priv_nh.param("rpm", init_rpm, -1); // set motor RPM
-
-	// angle filter
+	//  angle filter
 	bool with_angle_filter;
 	double min_angle, max_angle;
 	priv_nh.param("with_angle_filter", with_angle_filter, false); // true: enable angle filter, false: disable
@@ -1025,6 +1038,7 @@ int main(int argc, char **argv)
 	}
 	ros::ServiceServer stop_srv = node_handle.advertiseService("stop_motor", stop_motor);
 	ros::ServiceServer start_srv = node_handle.advertiseService("start_motor", start_motor);
+	ros::ServiceServer switchZone_srv = node_handle.advertiseService("switchZone_motor", switchZone_motor);
 
 	dynamic_reconfigure::Server<bluesea2::DynParamsConfig> server;
 	server.setCallback(boost::bind(&setup_params, _1, _2));
@@ -1034,7 +1048,7 @@ int main(int argc, char **argv)
 
 	//
 	uint32_t init_states = 0;
-	
+
 	if (unit_is_mm)
 		init_states |= DF_UNIT_IS_MM;
 	if (with_confidence)
@@ -1047,7 +1061,7 @@ int main(int argc, char **argv)
 		init_states |= DF_DESHADOWED;
 	if (enable_alarm_msg)
 		init_states |= EF_ENABLE_ALARM_MSG;
-	
+
 	HParser parsers[MAX_LIDARS];
 	PubHub *hubs[MAX_LIDARS] = {NULL};
 	for (int i = 0; i < lidar_count; i++)
@@ -1080,13 +1094,12 @@ int main(int argc, char **argv)
 			strcpy(lidars[i].lidar_ip, lidar_ips[i].c_str());
 			lidars[i].lidar_port = lidar_ports[i];
 		}
-		g_reader = StartUDPReader(g_type.c_str(),local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars, Savelog, logPath);
+		g_reader = StartUDPReader(g_type.c_str(), local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars, Savelog, logPath);
 	}
 	else if (g_type == "tcp")
 	{
 		g_reader = StartTCPReader(lidar_ips[0].c_str(), lidar_ports[0], parsers[0], hubs[0]);
 	}
-
 	while (ros::ok())
 	{
 		ros::spinOnce();
@@ -1094,7 +1107,6 @@ int main(int argc, char **argv)
 		for (int i = 0; i < lidar_count; i++)
 		{
 			RawData *fans[MAX_FANS] = {NULL};
-
 			if (!output_360)
 			{
 				if (GetFan(hubs[i], with_soft_resample, resample_res, fans))
@@ -1106,15 +1118,14 @@ int main(int argc, char **argv)
 											with_angle_filter, min_angle, max_angle,
 											inverted, reversed, zero_shift,
 											custom_masks);
-						// printf("free %x\n", fans[0]);
 					}
 					delete fans[0];
 					idle = false;
 				}
+				// printf("%s %d\n",__FUNCTION__,__LINE__);
 			}
 			else
 			{
-				// printf("%s %d %d \n",__FUNCTION__,__LINE__,hubs[i]->nfan);
 				uint32_t ts_beg[2], ts_end[2];
 				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
 				if (n > 0)

@@ -1042,7 +1042,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
 	char buf[32];
-	if (script(hnd, 6, "LSTARH", 6, "LiDAR ", 0, NULL))
+	char result[3]={0};
+	result[2]='\0';
+	if (script(hnd, 6, "LSTARH", 2, "OK", 0, NULL))
 	{
 		printf("set LiDAR LSTARH OK\n");
 	}
@@ -1102,9 +1104,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LSDSW:1H" : "LSDSW:0H";
-				if (s_pack(hnd, strlen(cmd), cmd))
+				if (s_pack(hnd, strlen(cmd), cmd,result))
 				{
-					printf("set LiDAR shadow filter %s OK\n", cmd);
+					printf("set LiDAR shadow filter %s %s\n", cmd,result);
 					break;
 				}
 			}
@@ -1131,9 +1133,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSMT:1H" : "LSSMT:0H";
-				if (s_pack(hnd, strlen(cmd), cmd))
+				if (s_pack(hnd, strlen(cmd), cmd,result))
 				{
-					printf("set LiDAR smooth  %s OK\n", cmd);
+					printf("set LiDAR smooth  %s %s\n", cmd,result);
 					break;
 				}
 			}
@@ -1153,7 +1155,6 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	}
 
 	// setup rpm
-
 	if (parser->device_ability & DF_WITH_RPM)
 	{
 		if (parser->init_rpm > 300 && parser->init_rpm < 3000)
@@ -1164,9 +1165,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 				sprintf(cmd, "LSRPM:%dH", parser->init_rpm);
 				if (strcmp(type, "udp") == 0)
 				{
-					if (s_pack(hnd, strlen(cmd), cmd))
+					if (s_pack(hnd, strlen(cmd), cmd,result))
 					{
-						printf("set RPM to %d OK\n", parser->init_rpm);
+						printf("set RPM to %d %s\n", parser->init_rpm,result);
 						break;
 					}
 				}
@@ -1198,10 +1199,21 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 					sprintf(cmd, "LSRES:%03dH", int(parser->resample_res * 1000));
 				}
 				char pattern[] = "set resolution ";
-				if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf))
+				if (strcmp(type, "udp") == 0)
 				{
-					printf("set resolution %s\n", buf);
-					break;
+					if (script(hnd, strlen(cmd), cmd, 2, "OK", 0, NULL))
+					{
+						printf("set resolution %s OK\n", cmd);
+						break;
+					}	
+				}	
+				else
+				{
+					if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf))
+					{
+						printf("set resolution %s\n", buf);
+						break;
+					}
 				}
 			}
 		}
@@ -1213,9 +1225,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
 		for (unsigned int i = 0; i < index; i++)
 		{
-			if (s_pack(hnd, strlen(cmd), cmd))
+			if (s_pack(hnd, strlen(cmd), cmd,result))
 			{
-				printf("set alarm_msg ok\n");
+				printf("set alarm_msg %s\n",result);
 				break;
 			}
 		}

@@ -69,7 +69,7 @@ bool send_cmd_udp_f(int fd_udp, const char *dev_ip, int dev_port,
 
 	memcpy(buffer + sizeof(CmdHeader), snd_buf, len);
 
-	int n = sizeof(CmdHeader);
+	//int n = sizeof(CmdHeader);
 	unsigned int *pcrc = (unsigned int *)(buffer + sizeof(CmdHeader) + len);
 	pcrc[0] = stm32crc((unsigned int *)(buffer + 0), len / 4 + 2);
 
@@ -103,7 +103,7 @@ bool send_cmd_udp(int fd_udp, const char *dev_ip, int dev_port,
 	return send_cmd_udp_f(fd_udp, dev_ip, dev_port, cmd, sn, len, snd_buf, isSaveLog, logPath);
 }
 
-bool udp_talk_S_PACK(void *hnd, int n, const char *cmd)
+bool udp_talk_S_PACK(void *hnd, int n, const char *cmd,void *result)
 {
 	ScriptParam *param = (ScriptParam *)hnd;
 	UDPInfo *info = param->info;
@@ -114,7 +114,7 @@ bool udp_talk_S_PACK(void *hnd, int n, const char *cmd)
 
 	unsigned short sn = rand();
 
-	int rt = send_cmd_udp(fd_udp, info->lidars[param->id].ip, info->lidars[param->id].port,
+	send_cmd_udp(fd_udp, info->lidars[param->id].ip, info->lidars[param->id].port,
 						  0x0053, sn, n, cmd, info->isSaveLog, info->logPath);
 
 	int ntry = 0;
@@ -152,9 +152,10 @@ bool udp_talk_S_PACK(void *hnd, int n, const char *cmd)
 					continue;
 
 				saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, sizeof(buf));
-				const int CODE_OK = 0x4b4f;
+				//const int CODE_OK = 0x4b4f;
 				close(fd_udp);
-				return *(int *)(buf + sizeof(CmdHeader)) == CODE_OK;
+				memcpy(result,buf+sizeof(CmdHeader),2);
+				return true;
 			}
 		}
 	}
@@ -175,7 +176,7 @@ bool udp_talk_C_PACK(void *hnd, int n, const char *cmd, int nhdr, const char *hd
 
 	unsigned short sn = rand();
 
-	int rt = send_cmd_udp(fd_udp, info->lidars[param->id].ip, info->lidars[param->id].port,
+	send_cmd_udp(fd_udp, info->lidars[param->id].ip, info->lidars[param->id].port,
 						  0x0043, sn, n, cmd, info->isSaveLog, info->logPath);
 
 	int ntry = 0;
@@ -248,7 +249,7 @@ void *UdpThreadProc(void *p)
 		for (int i = 0; i < info->nnode; i++)
 		{
 			char cmd[12] = "LUUIDH";
-			int rt = send_cmd_udp(fd_udp,
+			send_cmd_udp(fd_udp,
 								  info->lidars[i].ip, info->lidars[i].port,
 								  0x0043, rand(), 6, cmd, info->isSaveLog, info->logPath);
 		}
@@ -322,7 +323,7 @@ void *UdpThreadProc(void *p)
 				for (int i = 0; i < info->nnode; i++)
 				{
 					char cmd[12] = "LGCPSH";
-					int rt = send_cmd_udp(info->fd_udp,
+					send_cmd_udp(info->fd_udp,
 										  info->lidars[i].ip, info->lidars[i].port,
 										  0x0043, rand(), 6, cmd, info->isSaveLog, info->logPath);
 				}
@@ -499,6 +500,22 @@ bool SendUdpCmd(HReader hr, int lidar_id, int len, char *cmd)
 	return send_cmd_udp(info->fd_udp, info->lidars[lidar_id].ip, info->lidars[lidar_id].port,
 						0x0043, rand(), len, cmd, info->isSaveLog, info->logPath);
 }
+bool SendUdpCmd2(HReader hr,char* ip, int len, char *cmd)
+{
+	UDPInfo *info = (UDPInfo *)hr;
+	if (!info || info->fd_udp <= 0 || info->is_group_listener)
+		return false;
+
+	for(int i=0;i<info->nnode;i++)
+	{
+		if(strcmp(ip,info->lidars[i].ip)==0)
+		{
+			return send_cmd_udp(info->fd_udp, info->lidars[i].ip, info->lidars[i].port,
+						0x0053, rand(), len, cmd, info->isSaveLog, info->logPath);
+		}
+	}
+	return false;
+}
 
 bool udp_talk_GS_PACK(int fd_udp, const char *ip, int port, int n, const char *cmd, bool isSaveLog, const char *logPath, void *result)
 {
@@ -546,4 +563,16 @@ bool udp_talk_GS_PACK(int fd_udp, const char *ip, int port, int n, const char *c
 
 	printf("read %d packets, not response\n", nr);
 	return false;
+}
+
+void StopUDPReader(HReader hr)
+{
+	UDPInfo* info = (UDPInfo*)hr;
+	close(info->fd_udp);
+	//printf("stop udp reader\n");
+	//info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+
+	delete info;
 }

@@ -9,6 +9,7 @@
 #define DF_FAN_90		0x0020
 #define DF_WITH_RPM		0X0040
 #define DF_WITH_RESAMPLE	0X0010
+#define DF_WITH_RESAMPLE_SOFT	0X0080
 #define DF_MOTOR_REVERSE	0x0100
 #define DF_WITH_UUID		0X1000
 
@@ -227,7 +228,7 @@ typedef bool (*Script )(void*, int cmd_len, const char* cmd_str,
 		int pattern_len, const char* pattern_str, 
 		int nfetch, char* fetch);
 
-typedef bool (*S_PACK)(void*, int cmd_len, const char* cmd_str);
+typedef bool (*S_PACK)(void*, int cmd_len, const char* cmd_str,void*);
 bool ParserScript(HParser, Script , S_PACK,const char*type,void*);
 
 int ParserClose(HParser);

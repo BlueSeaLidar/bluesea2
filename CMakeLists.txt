@@ -59,6 +59,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
    FILES
    Control.srv
+   DefenceZone.srv
 #   Service2.srv
  )
 

@@ -100,13 +100,15 @@ How to control Lanhai ros node  start  and stop
 =====================================================================
 * client:      
  			
-												   arg1  state    arg2:choose lidar serial number
+			arg1  action    arg2:choose lidar serial number
 
 			start  or stop  one lidar
 			rosrun bluesea2  bluesea2_node_client  start/stop     0/1/2/... 
 			start or stop   all lidar
-			rosrun bluesea2  bluesea2_node_client  start/stop     -1          
-	        
+			rosrun bluesea2  bluesea2_node_client  start/stop     -1      
+
+			arg1: action arg2:zone ID(0-15)  arg3：IP
+	        rosrun bluesea2  bluesea2_node_client switchZone  1    192.168.0.110 
 
 * server:     
 

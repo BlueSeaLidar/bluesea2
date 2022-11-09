@@ -26,7 +26,7 @@
     <param name="inverted" value="false"/>
     <rosparam param="mask1">[ -1.5, 0 ]</rosparam>
     <param name="Savelog" value="true"/>
-    <param name="logPath" value="/home/pacecat/wangzn/test.log"/>
+    <param name="logPath" value="/home/pacecat/bluesea/test.log"/>
   </node>
  </group>
 </launch>

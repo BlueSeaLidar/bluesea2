@@ -195,4 +195,11 @@ bool SendTcpCmd(HReader hr, int len, char* cmd)
 }
 
 
-
+void StopTCPReader(HReader hr)
+{
+	TCPInfo* info = (TCPInfo*)hr;
+	//info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+	delete info;
+}
