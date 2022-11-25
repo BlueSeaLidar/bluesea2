@@ -201,7 +201,7 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 	return got;
 }
 
-int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **fans, bool from_zero,
+int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **fans, bool from_zero,int collect_angle,
 			   uint32_t *ts_beg, uint32_t *ts_end)
 {
 	PubHub *hub = (PubHub *)pub;
@@ -211,7 +211,7 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 	for (int i = 1; i < hub->nfan; i++)
 	{
 		if ((from_zero && hub->fans[i]->angle == 0) ||
-			(!from_zero && hub->fans[i]->angle == 1800))
+			(!from_zero && hub->fans[i]->angle+collect_angle*10 == 1800))
 		{
 			ts_end[0] = hub->fans[i]->ts[0];
 			ts_end[1] = hub->fans[i]->ts[1];
@@ -1002,7 +1002,8 @@ int main(int argc, char **argv)
 	// priv_nh.param("mirror", mirror, 0); // 0: clockwise, 1: counterclockwise
 	bool from_zero = false;
 	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
-
+	int collect_angle=0;
+	priv_nh.param("collect_angle", collect_angle, 0); 
 	bool Savelog = false;
 	std::string logPathTmp;
 	priv_nh.param("Savelog", Savelog, false);
@@ -1127,7 +1128,7 @@ int main(int argc, char **argv)
 			else
 			{
 				uint32_t ts_beg[2], ts_end[2];
-				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
+				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, collect_angle,ts_beg, ts_end);
 				if (n > 0)
 				{
 					idle = false;
