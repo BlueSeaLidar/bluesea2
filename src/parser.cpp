@@ -1044,9 +1044,19 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	char buf[32];
 	char result[3]={0};
 	result[2]='\0';
-	if (script(hnd, 6, "LSTARH", 2, "OK", 0, NULL))
+	if (strcmp(type, "uart") == 0)
 	{
-		printf("set LiDAR LSTARH OK\n");
+		if (script(hnd, 6, "LSTARH", 5, "START", 0, NULL))
+		{
+			printf("set LiDAR LSTARH OK\n");
+		}
+	}
+	else if (strcmp(type, "udp") == 0)
+	{
+		if (script(hnd, 6, "LSTARH", 2, "OK", 0, NULL))
+		{
+			printf("set LiDAR LSTARH OK\n");
+		}
 	}
 	// printf("%d\n",__LINE__);
 	if (parser->device_ability & DF_WITH_UUID)
