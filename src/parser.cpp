@@ -787,7 +787,7 @@ int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 }
 int alarmProc(unsigned char *buf, int len)
 {
-	//报警信息打印
+	//报�?�信�?打印
 	if (memcmp(buf, "LMSG", 4) == 0)
 	{
 		if (len >= (int)sizeof(LidarAlarm))
@@ -795,7 +795,7 @@ int alarmProc(unsigned char *buf, int len)
 			LidarAlarm *msg = (LidarAlarm *)buf;
 			if (msg->hdr.type >= 0x100)
 			{
-				//说明有LMSG_ALARM报警信息
+				//说明有LMSG_ALARM报�?�信�?
 				if (getbit(msg->hdr.data, 12) == 1)
 				{
 					printf("ALARM LEVEL:OBSERVE  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type, msg->zone_actived);
@@ -877,7 +877,7 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 	Parser *parser = (Parser *)hP.hParser;
 
 	uint8_t type = buf[0];
-	//报警信息打印
+	//报�?�信�?打印
 	if (alarmProc(buf, len))
 		return 0;
 
