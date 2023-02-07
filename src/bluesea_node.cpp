@@ -215,11 +215,11 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 		{
 			ts_end[0] = hub->fans[i]->ts[0];
 			ts_end[1] = hub->fans[i]->ts[1];
+			//printf("%d %d\n",ts_end[0],ts_end[1]);
 			cnt = i;
 			break;
 		}
 	}
-
 	if (cnt > 0)
 	{
 		for (int i = 0; i < cnt; i++)
@@ -244,14 +244,18 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 
 		for (int i = 0; i < cnt - 1; i++)
 		{
-			if (fans[i]->angle + fans[i]->span != fans[i + 1]->angle &&
+			if ((fans[i]->angle + fans[i]->span)%3600 != fans[i + 1]->angle &&
 				fans[i]->angle + fans[i]->span != 3600)
-				circle = false;
+				{
+					circle = false;
+					//printf("%d  %d %d \n", fans[i]->angle, fans[i]->span,fans[i + 1]->angle);
+				}
+				
 			total += fans[i + 1]->span;
 		}
 		if (!circle || total != 3600)
 		{
-			printf("%d drop %d fans\n", total, cnt);
+			printf("%d drop %d fans \n", total, cnt);
 			// clean imcomplent datas
 			for (int i = 0; i < cnt; i++)
 				delete fans[i];
@@ -880,16 +884,14 @@ int main(int argc, char **argv)
 	for (int i = 1; i < MAX_LIDARS; i++)
 	{
 		char s[32], t[32];
-
 		sprintf(s, "lidar%d_ip", i);
+		priv_nh.param(s, lidar_ips[i], std::string(""));
 		if (lidar_ips[i].length() == 0)
 			break;
-
 		sprintf(s, "lidar%d_port", i);
 		priv_nh.param(s, lidar_ports[i], 0);
 		if (lidar_ports[i] <= 0)
 			break;
-
 		sprintf(s, "topic%d", i);
 		sprintf(t, "scan%d", i);
 		priv_nh.param(s, laser_topics[i], std::string(t));
@@ -1008,7 +1010,7 @@ int main(int argc, char **argv)
 	std::string logPathTmp;
 	priv_nh.param("Savelog", Savelog, false);
 	// Synthesize the full  log path
-	priv_nh.param("logPath", logPathTmp, std::string("/opt/log"));
+	priv_nh.param("logPath", logPathTmp, std::string("/tmp/log"));
 	char logPath[256] = {0};
 	struct stat buffer;
 	if (stat(logPathTmp.c_str(), &buffer) != 0)
@@ -1020,7 +1022,7 @@ int main(int argc, char **argv)
 	time(&now);
 	tm_now = localtime(&now);
 
-	sprintf(logPath, "%slog_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year + 1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
+	sprintf(logPath, "%s/log_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year + 1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
 	// Synthesize the full  log path
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
@@ -1129,8 +1131,10 @@ int main(int argc, char **argv)
 			{
 				uint32_t ts_beg[2], ts_end[2];
 				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, collect_angle,ts_beg, ts_end);
+				
 				if (n > 0)
 				{
+					//printf("%s %d %d %d\n",__FUNCTION__,__LINE__,fans[0]->angle,fans[1]->angle);
 					idle = false;
 					if (output_scan)
 					{

@@ -169,7 +169,7 @@ bool uart_talk(void *hnd,
 	printf("send command : \'%s\' \n", cmd);
 	write(fd, cmd, n);
 	// printf("test:%d  %s\n",info->isSaveLog,info->logPath);
-	saveLog(info->isSaveLog, info->logPath, 0, (unsigned char *)cmd, n);
+	saveLog(info->isSaveLog, info->logPath, 0,"UART",0,(unsigned char *)cmd, n);
 	char buf[4096 * 2];
 
 	int nr = read(fd, buf, sizeof(buf));
@@ -196,7 +196,7 @@ bool uart_talk(void *hnd,
 			return true;
 		}
 	}
-	saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, nr);
+	saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
 	printf("read %d bytes, not found %s\n", nr, hdr_str);
 	return false;
 }
@@ -222,7 +222,7 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 	pcrc[0] = stm32crc((unsigned int *)(buffer + 0), len / 4 + 2);
 	int len2 = len + sizeof(CmdHeader) + 4;
 	write(fd, buffer, len2);
-	saveLog(info->isSaveLog, info->logPath, 0, (unsigned char *)cmd, n);
+	saveLog(info->isSaveLog, info->logPath, 0, "UART",0,(unsigned char *)cmd, n);
 	unsigned int nr = 0;
 	char buf[2048];
 	int index = 10;
@@ -262,7 +262,7 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 			}
 		}
 	}
-	saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, nr);
+	saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
 	printf("read %d bytes, not found %s\n", nr, cmd);
 	return false;
 }
@@ -298,7 +298,7 @@ int UartReader(UartInfo *info)
 				printf("read port error %d\n", nr);
 				break;
 			}
-			saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, nr);
+			saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
 			int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
 			// for (int i=0; i<nfan; i++)
 			// 	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);

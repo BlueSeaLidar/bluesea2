@@ -7,8 +7,8 @@
     <param name="logPath" value="/tmp/log"/>
     <param name="platform" value="LDS-50C-2" />
     <param name="port" value="/dev/ttyUSB0" />
-    <rosparam param="rate_list">[ 768000, 921600, 1000000 ]</rosparam>
-    <param name="baud_rate" value="768000" />
+    <rosparam param="rate_list">[ 230400, 256000 ]</rosparam>
+    <param name="baud_rate" value="230400" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
     <param name="rpm" value="600"/>

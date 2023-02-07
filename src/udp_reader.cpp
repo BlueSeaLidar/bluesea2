@@ -90,7 +90,7 @@ bool send_cmd_udp_f(int fd_udp, const char *dev_ip, int dev_port,
 	// 	printf("send to %s:%d 0x%04x sn[%d] L=%d : %s\n",
 	// 			dev_ip, dev_port, cmd, sn, len, s);
 	// }
-	saveLog(isSavelog, logPath, 0, buffer, len2);
+	saveLog(isSavelog, logPath, 0, dev_ip,dev_port,buffer, len2);
 
 	return true;
 }
@@ -151,7 +151,7 @@ bool udp_talk_S_PACK(void *hnd, int n, const char *cmd,void *result)
 				if (hdr->sign != 0x484c || hdr->sn != sn)
 					continue;
 
-				saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, sizeof(buf));
+				saveLog(info->isSaveLog, info->logPath, 1, info->lidars[param->id].ip, info->lidars[param->id].port,(unsigned char *)buf, sizeof(buf));
 				//const int CODE_OK = 0x4b4f;
 				close(fd_udp);
 				memcpy(result,buf+sizeof(CmdHeader),2);
@@ -212,7 +212,7 @@ bool udp_talk_C_PACK(void *hnd, int n, const char *cmd, int nhdr, const char *hd
 				if (hdr->sign != 0x484c || hdr->sn != sn)
 					continue;
 
-				saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, sizeof(buf));
+				saveLog(info->isSaveLog, info->logPath, 1, info->lidars[param->id].ip, info->lidars[param->id].port,(unsigned char *)buf, sizeof(buf));
 				char* payload = buf + sizeof(CmdHeader);
 				for (int i = 0; i < nr - nhdr - 1; i++)
 				{
@@ -353,7 +353,7 @@ void *UdpThreadProc(void *p)
 					if (addr.sin_addr.s_addr == info->lidars[i].s_addr)
 					{
 						id = i;
-						saveLog(info->isSaveLog, info->logPath, 1, (unsigned char *)buf, sizeof(buf));
+						saveLog(info->isSaveLog, info->logPath, 1, info->lidars[i].ip, info->lidars[i].port,(unsigned char *)buf, sizeof(buf));
 						break;
 					}
 				}

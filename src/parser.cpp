@@ -1039,15 +1039,26 @@ char g_uuid[32] = "";
 
 bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, void *hnd)
 {
+	
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
 	char buf[32];
 	char result[3]={0};
 	result[2]='\0';
-	if (script(hnd, 6, "LSTARH", 2, "OK", 0, NULL))
-	{
-		printf("set LiDAR LSTARH OK\n");
-	}
+	// if (strcmp(type, "uart") == 0)
+	// {
+	// 	if (script(hnd, 6, "LSTARH", 5, "START", 0, NULL))
+	// 	{
+	// 		printf("set LiDAR LSTARH OK\n");
+	// 	}
+	// }
+	// else if (strcmp(type, "udp") == 0)
+	// {
+	// 	if (script(hnd, 6, "LSTARH", 2, "OK", 0, NULL))
+	// 	{
+	// 		printf("set LiDAR LSTARH OK\n");
+	// 	}
+	// }
 	// printf("%d\n",__LINE__);
 	if (parser->device_ability & DF_WITH_UUID)
 	{
@@ -1235,7 +1246,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 
 	return true;
 }
-void saveLog(bool isSaveLog, const char *logPath, int type, const unsigned char *buf, unsigned int len)
+void saveLog(bool isSaveLog, const char *logPath, int type, const char *ip,const int port,const unsigned char *buf, unsigned int len)
 {
 	if (isSaveLog)
 	{
@@ -1243,9 +1254,9 @@ void saveLog(bool isSaveLog, const char *logPath, int type, const unsigned char 
 		if (fp)
 		{
 			if (type == 0)
-				fprintf(fp, "SEND MSG:\t");
+				fprintf(fp, "%s %d SEND MSG:\t",ip,port);
 			if (type == 1)
-				fprintf(fp, "REV MSG:\t");
+				fprintf(fp, "%s %d REV MSG:\t",ip,port);
 
 			for (unsigned int i = 0; i < len; i++)
 			{

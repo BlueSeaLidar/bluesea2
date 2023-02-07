@@ -1,17 +1,18 @@
 <launch>
  <group ns="lidar1">
   <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
-    <param name="type" value="uart" />
+    <param name="type" value="udp" />
     <param name="topic" value="scan"/>
     <param name="Savelog" value="false"/>  
     <param name="logPath" value="/tmp/log"/>
-    <param name="platform" value="LDS-50C-2" />
-    <param name="port" value="/dev/ttyUSB0" />
-    <rosparam param="rate_list">[ 768000, 921600, 1000000 ]</rosparam>
-    <param name="baud_rate" value="768000" />
+    <param name="platform" value="LDS-50C-S" />
+    <param name="lidar_port" value="5000" />
+    <param name="local_port" value="50122" />
+    <param name="lidar_ip" value="192.168.158.98" />
+    <param name="group_ip" value="224.1.1.99" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
-    <param name="rpm" value="600"/>
+    <param name="rpm" value="900"/>
     <param name="min_dist" value="0.1"/>
     <param name="max_dist" value="50.0"/>
     <param name="zero_shift" value="0"/>
@@ -29,10 +30,10 @@
     <param name="reversed" value="false"/>
     <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-3.1415926"/>
-    <param name="max_angle" value="3.1415926"/>
+    <param name="max_angle" value="3.1415926"/>    
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>
-    <param name="resample_res" value="0.400"/>
+    <param name="resample_res" value="0.2"/>                 
   </node>
  </group>
 </launch>

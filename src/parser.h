@@ -236,7 +236,7 @@ int ParserRunStream(HParser, int len, unsigned char* buf, RawData* fans[]);
 int ParserRun(LidarNode, int len, unsigned char* buf, RawData* fans[]);
 
 void SetTimeStamp(RawData*); 
-void saveLog(bool isSaveLog,const char*logPath,int type,const unsigned char*buf,unsigned int len);
+void saveLog(bool isSaveLog,const char*logPath,int type,const char *ip,const int port,const unsigned char*buf,unsigned int len);
 int mkpathAll(std::string s, mode_t mode);
 unsigned int stm32crc(unsigned int *ptr, unsigned int len);
 int alarmProc(unsigned char *buf,int len);
