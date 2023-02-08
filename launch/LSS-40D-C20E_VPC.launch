@@ -20,8 +20,8 @@
     <param name="output_360" value="true" />
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="false"/>
-    <param name="with_smooth" value="false" />
-    <param name="with_deshadow" value="false" />
+    <param name="with_smooth" value="true" />
+    <param name="with_deshadow" value="true" />
     <param name="with_confidence" value="true"/>
     <param name="with_checksum" value="true"/>
     <param name="inverted" value="false"/>
