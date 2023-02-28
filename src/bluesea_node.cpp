@@ -37,6 +37,7 @@ struct PubHub
 	pthread_mutex_t mtx;
 	int nfan;
 	RawData *fans[MAX_FANS];
+	int error_num;
 };
 
 void closeSignal(int sig)
@@ -184,7 +185,7 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 	}
 	else
 		return false;
-	
+
 	if (with_resample) // && resample_res > 0.05)
 	{
 		int NN = fans[0]->span / (10 * resample_res);
@@ -201,8 +202,8 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 	return got;
 }
 
-int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **fans, bool from_zero,int collect_angle,
-			   uint32_t *ts_beg, uint32_t *ts_end)
+int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **fans, bool from_zero, int collect_angle,
+			   uint32_t *ts_beg, uint32_t *ts_end, int error_circle, double error_scale)
 {
 	PubHub *hub = (PubHub *)pub;
 	// RawData* drop[MAX_FANS];
@@ -211,11 +212,11 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 	for (int i = 1; i < hub->nfan; i++)
 	{
 		if ((from_zero && hub->fans[i]->angle == 0) ||
-			(!from_zero && hub->fans[i]->angle+collect_angle*10 == 1800))
+			(!from_zero && hub->fans[i]->angle + collect_angle * 10 == 1800))
 		{
 			ts_end[0] = hub->fans[i]->ts[0];
 			ts_end[1] = hub->fans[i]->ts[1];
-			//printf("%d %d\n",ts_end[0],ts_end[1]);
+			// printf("%d %d\n",ts_end[0],ts_end[1]);
 			cnt = i;
 			break;
 		}
@@ -244,13 +245,13 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 
 		for (int i = 0; i < cnt - 1; i++)
 		{
-			if ((fans[i]->angle + fans[i]->span)%3600 != fans[i + 1]->angle &&
+			if ((fans[i]->angle + fans[i]->span) % 3600 != fans[i + 1]->angle &&
 				fans[i]->angle + fans[i]->span != 3600)
-				{
-					circle = false;
-					//printf("%d  %d %d \n", fans[i]->angle, fans[i]->span,fans[i + 1]->angle);
-				}
-				
+			{
+				circle = false;
+				// printf("%d  %d %d \n", fans[i]->angle, fans[i]->span,fans[i + 1]->angle);
+			}
+
 			total += fans[i + 1]->span;
 		}
 		if (!circle || total != 3600)
@@ -261,6 +262,28 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 				delete fans[i];
 			cnt = 0;
 		}
+		int sum = 0;
+		int lengthZeroNum = 0;
+		for (int i = 0; i < cnt; i++)
+		{
+			sum += fans[i]->N;
+			for (int j = 0; j < fans[i]->N; j++)
+			{
+				if (fans[i]->points[j].distance == 0)
+				{
+					lengthZeroNum++;
+				}
+			}
+		}
+		if (sum * error_scale < lengthZeroNum)
+			hub->error_num++;
+
+		if (hub->error_num >= error_circle)
+		{
+			printf("There are many points with a distance of 0 in the current ridar operation,sum:%d lengthZeroNum:%d\n",sum,lengthZeroNum);
+			hub->error_num=0;
+		}
+		// printf("123   %d  %d %d\n",sum,lengthZeroNum,hub->error_num);
 	}
 	if (cnt > 0)
 	{
@@ -280,7 +303,6 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 			}
 		}
 	}
-
 	return cnt;
 }
 
@@ -769,8 +791,8 @@ bool start_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &r
 }
 bool switchZone_motor(bluesea2::DefenceZone::Request &req, bluesea2::DefenceZone::Response &res)
 {
-	char cmd[12]={0};
-	sprintf(cmd,"LSAZN:%xH",req.index);
+	char cmd[12] = {0};
+	sprintf(cmd, "LSAZN:%xH", req.index);
 	ROS_INFO("DefenceZone motor  cmd:%s,ip:%s", cmd, req.ip.c_str());
 	int index = req.index;
 	if (index < 0)
@@ -778,8 +800,9 @@ bool switchZone_motor(bluesea2::DefenceZone::Request &req, bluesea2::DefenceZone
 		return false;
 	}
 	else
-	{	
-		return SendUdpCmd2(g_reader, (char*)req.ip.c_str(), 12, cmd);;
+	{
+		return SendUdpCmd2(g_reader, (char *)req.ip.c_str(), 12, cmd);
+		;
 	}
 	return false;
 }
@@ -1004,8 +1027,8 @@ int main(int argc, char **argv)
 	// priv_nh.param("mirror", mirror, 0); // 0: clockwise, 1: counterclockwise
 	bool from_zero = false;
 	priv_nh.param("from_zero", from_zero, false); // true : angle range [0 - 360), false: angle range [-180, 180)
-	int collect_angle=0;
-	priv_nh.param("collect_angle", collect_angle, 0); 
+	int collect_angle = 0;
+	priv_nh.param("collect_angle", collect_angle, 0);
 	bool Savelog = false;
 	std::string logPathTmp;
 	priv_nh.param("Savelog", Savelog, false);
@@ -1024,6 +1047,10 @@ int main(int argc, char **argv)
 
 	sprintf(logPath, "%s/log_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year + 1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
+	int error_circle = 0;
+	double error_scale = 0;
+	priv_nh.param("error_circle", error_circle, 3);
+	priv_nh.param("error_scale", error_scale, 0.9);
 	// Synthesize the full  log path
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
@@ -1070,7 +1097,7 @@ int main(int argc, char **argv)
 	for (int i = 0; i < lidar_count; i++)
 	{
 		parsers[i] = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res,
-								with_chk, dev_id);
+								with_chk, dev_id, error_circle, error_scale);
 		hubs[i] = new PubHub;
 		hubs[i]->nfan = 0;
 		pthread_mutex_init(&hubs[i]->mtx, NULL);
@@ -1130,11 +1157,9 @@ int main(int argc, char **argv)
 			else
 			{
 				uint32_t ts_beg[2], ts_end[2];
-				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, collect_angle,ts_beg, ts_end);
-				
+				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, collect_angle, ts_beg, ts_end, error_circle, error_scale);
 				if (n > 0)
 				{
-					//printf("%s %d %d %d\n",__FUNCTION__,__LINE__,fans[0]->angle,fans[1]->angle);
 					idle = false;
 					if (output_scan)
 					{

@@ -35,7 +35,9 @@
     <param name="max_angle" value="3.1415926"/>    
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>
-    <param name="resample_res" value="0.2"/>                 
+    <param name="resample_res" value="0.2"/>  
+    <param name="error_circle" value="3"/>
+    <param name="error_scale" value="0.9"/>                
   </node>
  </group>
 </launch>

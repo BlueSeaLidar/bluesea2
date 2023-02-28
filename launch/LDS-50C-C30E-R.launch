@@ -26,6 +26,8 @@
     <param name="inverted" value="true"/>
     <param name="reversed" value="false"/>
     <param name="zero_shift" value="-0.047123889"/>
+    <param name="error_circle" value="3"/>
+    <param name="error_scale" value="0.9"/>
   </node>
  </group>
 </launch>

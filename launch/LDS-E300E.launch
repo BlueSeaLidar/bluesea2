@@ -27,6 +27,8 @@
     <param name="reversed" value="false"/> 
     <param name="zero_shift" value="0"/> 
     <param name="rpm" value="900"/>
+    <param name="error_circle" value="3"/>
+    <param name="error_scale" value="0.9"/>
   </node>
  </group>
 </launch>
