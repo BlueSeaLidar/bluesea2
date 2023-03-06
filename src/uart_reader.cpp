@@ -190,8 +190,34 @@ bool uart_talk(void *hnd,
 		{
 			if (nfetch > 0)
 			{
-				memcpy(fetch, buf + i + nhdr, nfetch);
-				fetch[nfetch] = 0;
+				if (strcmp(cmd, "LXVERH") == 0 || strcmp(cmd, "LUUIDH") == 0)
+				{
+					memcpy(fetch, buf + i + nhdr, nfetch);
+					fetch[nfetch] = 0;
+				}
+				else
+				{
+					strcpy(fetch, "OK");
+					fetch[3] = 0;
+				}
+			}
+			return true;
+		}
+		else if (memcmp(buf + i, cmd, n) == 0)
+		{
+			if (nfetch > 0)
+			{
+				memcpy(fetch, buf + i + n+1, 2);
+				fetch[2] = 0;
+			}
+			return true;
+		}
+		else if (memcmp(buf + i,"unsupport", 9) == 0)
+		{
+			if (nfetch > 0)
+			{
+				strcpy(fetch, "unsupport");
+				fetch[10] = 0;
 			}
 			return true;
 		}
