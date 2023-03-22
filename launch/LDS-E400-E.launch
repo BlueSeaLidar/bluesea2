@@ -8,12 +8,12 @@
     <param name="platform" value="LDS-50C-E" />
     <param name="lidar_port" value="6543" />
     <param name="local_port" value="6668" />
-    <param name="lidar_ip" value="192.168.0.212" />
+    <param name="lidar_ip" value="192.168.0.92" />
     <param name="group_listener" value="false" />
     <param name="group_ip" value="224.0.0.11" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
-    <param name="rpm" value="900"/>
+    <param name="rpm" value="1500"/>
     <param name="min_dist" value="0.1"/>
     <param name="max_dist" value="50.0"/>
     <param name="zero_shift" value="0"/>
@@ -35,9 +35,10 @@
     <param name="max_angle" value="3.1415926"/>    
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>
-    <param name="resample_res" value="0.2"/>  
+    <param name="resample_res" value="0.2"/>
     <param name="error_circle" value="3"/>
-    <param name="error_scale" value="0.9"/>               
+    <param name="error_scale" value="0.9"/>
+    <param name="direction" value="0"/>                 
   </node>
  </group>
 </launch>

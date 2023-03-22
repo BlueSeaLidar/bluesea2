@@ -327,7 +327,7 @@ int UartReader(UartInfo *info)
 			saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
 			int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
 			// for (int i=0; i<nfan; i++)
-			// 	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
+			// 		printf("angle:%d distance:%d \n", fans[i]->angle, fans[i]->points[0].distance);
 			if (nfan > 0)
 			{
 				PublishData(info->hPublish, nfan, fans);

@@ -382,7 +382,7 @@ void *UdpThreadProc(void *p)
 					RawData *fans[MAX_FANS];
 					int nfan = ParserRun(info->lidars[id], nr, (uint8_t *)buf, &(fans[0]));
 					// for (int i=0; i<nfan; i++)
-					//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
+					// 	 printf("angle:%d  span:%d time:%d %d\n", fans[i]->angle, fans[i]->span,fans[i]->ts[0],fans[i]->ts[1]);
 					if (nfan > 0)
 						PublishData(info->lidars[id].hPublish, nfan, fans);
 				}

@@ -211,12 +211,13 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 	int cnt = 0;
 	for (int i = 1; i < hub->nfan; i++)
 	{
+		 //printf("%d %d %d\n",from_zero,hub->fans[i]->angle,collect_angle);
 		if ((from_zero && hub->fans[i]->angle == 0) ||
 			(!from_zero && hub->fans[i]->angle == 1800 + collect_angle * 10))
 		{
 			ts_end[0] = hub->fans[i]->ts[0];
 			ts_end[1] = hub->fans[i]->ts[1];
-			// printf("%d %d\n",ts_end[0],ts_end[1]);
+			
 			cnt = i;
 			break;
 		}
@@ -355,7 +356,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 						 double min_dist, double max_dist,
 						 bool with_filter, double min_ang, double max_ang,
 						 bool inverted, bool reversed, double zero_shift,
-						 const std::vector<Range> &custom_masks)
+						 const std::vector<Range> &custom_masks, int collect_angle)
 {
 	double min_deg = min_ang * 180 / M_PI;
 	double max_deg = max_ang * 180 / M_PI;
@@ -375,28 +376,38 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 			fan->points[i].degree = deg;
 		}
 	}
-
+	if(reversed)
+		collect_angle = -collect_angle;
 	double min_pos, max_pos;
 	if (with_filter)
 	{
 		N = GetCount(1, &fan, min_deg, max_deg, min_pos, max_pos);
 		if (N < 2)
 			return;
-		min_pos = min_pos * M_PI / 180;
-		max_pos = max_pos * M_PI / 180;
+		// min_pos = min_pos * M_PI / 180;
+		// max_pos = max_pos * M_PI / 180;
+		if (inverted)
+		{
+			min_pos = ROSAng(-fan->angle / 10) * 10 * M_PI / 1800;
+			max_pos = -min_pos + (fan->span + collect_angle * 10) * M_PI / 1800;
+		}
+		else
+		{
+			min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
+			max_pos = min_pos - (fan->span - collect_angle * 10) * M_PI / 1800;
+		}
 	}
 	else
 	{
 		if (inverted)
 		{
-			min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
-			max_pos = min_pos + fan->span * M_PI / 1800;
+			min_pos = ROSAng(-fan->angle / 10 ) * 10 * M_PI / 1800;
+			max_pos = -min_pos + (fan->span + collect_angle * 10) * M_PI / 1800;
 		}
 		else
 		{
-
-			min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
-			max_pos = min_pos - fan->span * M_PI / 1800;
+			min_pos = ROSAng(fan->angle / 10 ) * 10 * M_PI / 1800;
+			max_pos = min_pos - (fan->span - collect_angle * 10) * M_PI / 1800;
 		}
 	}
 
@@ -561,8 +572,8 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 	msg.range_min = min_dist;
 	msg.range_max = max_dist; // 8.0;
 
-	// min_deg -= zero_shift* 180 / M_PI;
-	// max_deg -= zero_shift* 180 / M_PI;
+	if(reversed)
+		collect_angle = -collect_angle;
 	if (with_filter)
 	{
 		double min_pos, max_pos;
@@ -571,26 +582,26 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 		{
 			if (inverted)
 			{
-				msg.angle_min = min_pos * M_PI / 180;
-				msg.angle_max = max_pos * M_PI / 180;
+				msg.angle_min = min_pos * M_PI / 180+ (float)collect_angle / 180 * M_PI;
+				msg.angle_max = max_pos * M_PI / 180+ (float)collect_angle / 180 * M_PI;
 			}
 			else
 			{
-				msg.angle_min = max_pos * M_PI / 180;
-				msg.angle_max = min_pos * M_PI / 180;
+				msg.angle_min = max_pos * M_PI / 180- (float)collect_angle / 180 * M_PI;
+				msg.angle_max = min_pos * M_PI / 180- (float)collect_angle / 180 * M_PI;
 			}
 		}
 		else
 		{
 			if (inverted)
 			{
-				msg.angle_min = min_pos * M_PI / 180+ (float)collect_angle / 180 * M_PI;
-				msg.angle_max = max_pos * M_PI / 180+ (float)collect_angle / 180 * M_PI;
+				msg.angle_min = min_pos * M_PI / 180 + (float)collect_angle / 180 * M_PI;
+				msg.angle_max = max_pos * M_PI / 180 + (float)collect_angle / 180 * M_PI;
 			}
 			else
 			{
-				msg.angle_min = max_pos * M_PI / 180-(float)collect_angle / 180 * M_PI;
-				msg.angle_max = min_pos * M_PI / 180-(float)collect_angle / 180 * M_PI;
+				msg.angle_min = max_pos * M_PI / 180 - (float)collect_angle / 180 * M_PI;
+				msg.angle_max = min_pos * M_PI / 180 - (float)collect_angle / 180 * M_PI;
 			}
 		}
 		msg.angle_increment = (msg.angle_max - msg.angle_min) / (N - 1);
@@ -601,14 +612,14 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 		{
 			if (inverted)
 			{
-				msg.angle_min = 0;
-				msg.angle_max = 2 * M_PI * (N - 1) / N;
+				msg.angle_min = 0+ (float)collect_angle / 180 * M_PI;
+				msg.angle_max = 2 * M_PI * (N - 1) / N+ (float)collect_angle / 180 * M_PI;
 				msg.angle_increment = M_PI * 2 / N;
 			}
 			else
 			{
-				msg.angle_min = 2 * M_PI * (N - 1) / N;
-				msg.angle_max = 0;
+				msg.angle_min = 2 * M_PI * (N - 1) / N- (float)collect_angle / 180 * M_PI;
+				msg.angle_max = 0- (float)collect_angle / 180 * M_PI;
 				msg.angle_increment = -M_PI * 2 / N;
 			}
 		}
@@ -654,6 +665,8 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			for (int i = fans[j]->N - 1; i >= 0; i--)
 			{
 				double deg = ROSAng(fans[j]->points[i].degree);
+				//if(deg>180||deg<-180)
+					//printf("test:%lf\n",deg);
 				if (with_filter)
 				{
 					if (deg < min_deg)
@@ -722,7 +735,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 
 void PublishCloud(ros::Publisher &cloud_pub, int nfan, RawData **fans, std::string &frame_id,
 				  double max_dist,
-				  bool with_filter, double min_ang, double max_ang)
+				  bool with_filter, double min_ang, double max_ang,int collect_angle)
 {
 	sensor_msgs::PointCloud cloud;
 	// cloud.header.stamp = ros::Time::now();
@@ -1066,6 +1079,8 @@ int main(int argc, char **argv)
 	double error_scale = 0;
 	priv_nh.param("error_circle", error_circle, 3);
 	priv_nh.param("error_scale", error_scale, 0.9);
+	int direction=0;
+	priv_nh.param("direction", direction, -1);
 	// Synthesize the full  log path
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
@@ -1112,7 +1127,7 @@ int main(int argc, char **argv)
 	for (int i = 0; i < lidar_count; i++)
 	{
 		parsers[i] = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res,
-								with_chk, dev_id, error_circle, error_scale);
+								with_chk, dev_id, error_circle, error_scale,direction);
 		hubs[i] = new PubHub;
 		hubs[i]->nfan = 0;
 		pthread_mutex_init(&hubs[i]->mtx, NULL);
@@ -1162,7 +1177,7 @@ int main(int argc, char **argv)
 											min_dist, max_dist,
 											with_angle_filter, min_angle, max_angle,
 											inverted, reversed, zero_shift,
-											custom_masks);
+											custom_masks, collect_angle);
 					}
 					delete fans[0];
 					idle = false;
@@ -1187,7 +1202,7 @@ int main(int argc, char **argv)
 					if (output_cloud)
 					{
 						PublishCloud(cloud_pubs[i], n, fans, frame_id, max_dist,
-									 with_angle_filter, min_angle, max_angle);
+									 with_angle_filter, min_angle, max_angle,collect_angle);
 					}
 
 					for (int i = 0; i < n; i++)
