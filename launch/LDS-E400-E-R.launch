@@ -8,7 +8,7 @@
     <param name="platform" value="LDS-50C-E" />
     <param name="lidar_port" value="6543" />
     <param name="local_port" value="6668" />
-    <param name="lidar_ip" value="192.168.0.92" />
+    <param name="lidar_ip" value="192.168.0.96" />
     <param name="group_listener" value="false" />
     <param name="group_ip" value="224.0.0.11" />
     <param name="raw_bytes" value="3"/>
@@ -32,7 +32,8 @@
     <param name="reversed" value="false"/>
     <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-3.1415926"/>
-    <param name="max_angle" value="3.1415926"/>    
+    <param name="max_angle" value="3.1415926"/>
+    <rosparam param="mask1" >[1.57,3.14]</rosparam>  
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>
     <param name="resample_res" value="0.2"/>
