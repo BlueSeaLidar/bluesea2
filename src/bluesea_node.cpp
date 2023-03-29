@@ -388,7 +388,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 	else
 	{
 		min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
-		max_pos = min_pos - (fan->span - collect_angle * 10) * M_PI / 1800; 
+		max_pos = min_pos - (fan->span - collect_angle * 10) * M_PI / 1800;
 	}
 
 	sensor_msgs::LaserScan msg;
@@ -421,7 +421,6 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 		msg.angle_max = min_pos;
 		msg.angle_increment = -(fan->span * M_PI / 1800) / fan->N;
 	}
-
 
 	N = 0;
 	if (reversed)
@@ -954,6 +953,12 @@ int main(int argc, char **argv)
 		min_angle = max_angle * -1;
 		max_angle = tmp;
 	}
+	if (reversed)
+	{
+		double tmp = min_angle * -1;
+		min_angle = max_angle * -1;
+		max_angle = tmp;
+	}
 	std::vector<Range> custom_masks;
 	Range range1, range2;
 	if (min_angle < max_angle)
@@ -964,7 +969,9 @@ int main(int argc, char **argv)
 		range2.max = 180;
 		custom_masks.push_back(range1);
 		custom_masks.push_back(range2);
+		printf("Visible range:%lf %lf %lf %lf\n", range1.min, range1.max, range2.min, range2.max);
 	}
+	
 	for (int i = 1;; i++)
 	{
 		char name[32];
@@ -978,7 +985,12 @@ int main(int argc, char **argv)
 			range.min = range.max * -1;
 			range.max = tmp;
 		}
-		// printf("qwer:%lf %lf %lf %lf\n",range.min,range.max,min_angle,max_angle);
+		if (reversed)
+		{
+			double tmp = range.min * -1;
+			range.min = range.max * -1;
+			range.max = tmp;
+		}
 		double min_angle_tmp = min_angle / M_PI * 180;
 		double max_angle_tmp = max_angle / M_PI * 180;
 
@@ -1005,7 +1017,7 @@ int main(int argc, char **argv)
 			}
 		}
 		custom_masks.push_back(range);
-		//printf("%lf %lf\n", range.min, range.max);
+		printf("Invisible range:%lf %lf\n", range.min, range.max);
 	}
 
 	// frame information

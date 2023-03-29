@@ -880,7 +880,6 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 	Parser *parser = (Parser *)hP.hParser;
 
 	uint8_t type = buf[0];
-	// 报�?�信�?打印
 	if (alarmProc(buf, len))
 		return 0;
 
@@ -1016,7 +1015,12 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 		//
 		return 0;
 	}
+	if (buf[0] == 0x4f && buf[1] == 0x4f && buf[2] == 0x42 && buf[3] == 0x53)
+	{
+		return 0;
+	}
 	printf("skip packet %08x len %d\n", *(uint32_t *)buf, len);
+	//printf("qwer:%02X %02X %02X %02X\n", buf[0],buf[1],buf[2],buf[3]);
 	return 0;
 }
 
@@ -1220,7 +1224,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	// enable/disable alaram message uploading
 	if (parser->device_ability & EF_ENABLE_ALARM_MSG)
 	{
-		char cmd[32];
+		char cmd[16];
 		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
 		for (unsigned int i = 0; i < index; i++)
 		{
@@ -1236,7 +1240,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	{
 		if(parser->direction<0)
 			break;
-		char cmd[8]={0};
+		char cmd[16]={0};
 		sprintf(cmd,"LSCCW:%dH",parser->direction);
 		if (s_pack(hnd, strlen(cmd), cmd, result))
 		{

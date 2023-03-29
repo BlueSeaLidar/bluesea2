@@ -357,11 +357,10 @@ void *UdpThreadProc(void *p)
 						break;
 					}
 				}
-				// if (id == -1 && info->nnode == 1) id = 0;
-
 				if (id == -1)
 				{
-					printf("packet from unknown address %s\n", inet_ntoa(addr.sin_addr));
+					//continue;
+					//printf("packet from unknown address %s\n", inet_ntoa(addr.sin_addr));
 				}
 				else if (buf[0] == 0x4c && buf[1] == 0x48 && buf[2] == ~0x41 && buf[3] == ~0x4b)
 				{
@@ -374,11 +373,9 @@ void *UdpThreadProc(void *p)
 						else
 							delay = clock + 36000000 - ka->world_clock;
 					}
-					// printf("lidar[%d] delay %d\n", id, delay);
 				}
 				else
 				{
-					// printf("udp %02x%02x\n", buf[0], buf[1]);
 					RawData *fans[MAX_FANS];
 					int nfan = ParserRun(info->lidars[id], nr, (uint8_t *)buf, &(fans[0]));
 					// for (int i=0; i<nfan; i++)
