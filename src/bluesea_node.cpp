@@ -273,6 +273,9 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 				{
 					lengthZeroNum++;
 				}
+				// else{
+				// 	printf("test:%d\n",fans[i]->points[j].distance);
+				// }
 			}
 		}
 		if (sum * error_scale < lengthZeroNum)
@@ -280,7 +283,7 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 
 		if (hub->error_num >= error_circle)
 		{
-			printf("There are many points with a distance of 0 in the current ridar operation,sum:%d lengthZeroNum:%d\n", sum, lengthZeroNum);
+			printf("There are many points with a distance of 0 in the current lidar operation,sum:%d lengthZeroNum:%d\n", sum, lengthZeroNum);
 			hub->error_num = 0;
 		}
 		// printf("123   %d  %d %d\n",sum,lengthZeroNum,hub->error_num);
@@ -799,6 +802,7 @@ bool get_range_param(ros::NodeHandle nh, const char *name, Range &range)
 
 int main(int argc, char **argv)
 {
+	//printf("%d %s \n%s \n%s\n",argc,argv[0],argv[1],argv[2]);
 	ros::init(argc, argv, "bluesea2_laser_publisher");
 	ros::NodeHandle node_handle;
 	ros::NodeHandle priv_nh("~");

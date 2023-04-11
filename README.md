@@ -41,7 +41,7 @@ How to run Lanhai ros node (UDP Network Version)
 
 Parameters
 =====================================================================
-* std::string type; // LiDAR comm type, could be "uart", "tcp" or "udp"
+* std::string type; // LiDAR comm type, could be "uart", or "udp"
 * std::string platform; // LiDAR hardware platform
 * std::string dump;	// file path of dump raw data, for debug
 
@@ -52,8 +52,8 @@ Parameters
 // for network comm
 * std::string lidar_ip; // LiDAR's network address 
 * std::string group_ip; // multicast address
-* int lidar_port; // lidar's port (TCP / UDP)
-* int local_port; // ROS machine's port (TCP / UDP)
+* int lidar_port; // lidar's port (UDP)
+* int local_port; // ROS machine's port (UDP)
 
 // for intput data format
 * bool unit_is_mm; //  true : unit of raw data distance is CM, false: MM
