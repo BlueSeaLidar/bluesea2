@@ -24,12 +24,12 @@
     <param name="with_deshadow" value="true" />
     <param name="with_confidence" value="true"/>
     <param name="with_checksum" value="true"/>
-    <param name="inverted" value="true"/>
+    <param name="inverted" value="false"/>
     <param name="reversed" value="false"/>
     <param name="with_angle_filter" value="false"/>
-    <param name="min_angle" value="-3.1415926"/>
-    <param name="max_angle" value="3.1415926"/>
-    <rosparam param="mask1" >[1.57,3.14]</rosparam>
+    <param name="min_angle" value="0"/>
+    <param name="max_angle" value="3.14"/>
+    <rosparam param="mask1">[0,1]</rosparam>
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>
     <param name="resample_res" value="1"/>

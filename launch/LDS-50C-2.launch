@@ -11,7 +11,6 @@
     <param name="baud_rate" value="500000" />
     <param name="raw_bytes" value="3"/>
     <param name="frame_id" value="map" />
-    <param name="rpm" value="600"/>
     <param name="min_dist" value="0.1"/>
     <param name="max_dist" value="50.0"/>
     <param name="zero_shift" value="0"/>

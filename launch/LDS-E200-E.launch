@@ -8,7 +8,7 @@
     <param name="platform" value="LDS-50C-E" />
     <param name="lidar_port" value="6543" />
     <param name="local_port" value="6668" />
-    <param name="lidar_ip" value="192.168.0.212" />
+    <param name="lidar_ip" value="192.168.158.98" />
     <param name="group_listener" value="false" />
     <param name="group_ip" value="224.0.0.11" />
     <param name="raw_bytes" value="3"/>
