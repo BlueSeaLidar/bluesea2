@@ -443,7 +443,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 			bool custom = false;
 			for (int k = 0; k < custom_masks.size() && !custom; k++)
 			{
-				if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
+				if (with_filter && custom_masks[k].min <= deg && deg <= custom_masks[k].max)
 					custom = true;
 			}
 
@@ -475,7 +475,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 			bool custom = false;
 			for (int k = 0; k < custom_masks.size() && !custom; k++)
 			{
-				if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
+				if (with_filter && custom_masks[k].min <= deg && deg <= custom_masks[k].max)
 					custom = true;
 			}
 
@@ -613,7 +613,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 				bool custom = false;
 				for (int k = 0; k < custom_masks.size() && !custom; k++)
 				{
-					if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
+					if (with_filter && custom_masks[k].min <= deg && deg <= custom_masks[k].max)
 						custom = true;
 				}
 
@@ -637,7 +637,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 				bool custom = false;
 				for (int k = 0; k < custom_masks.size() && !custom; k++)
 				{
-					if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
+					if (with_filter && custom_masks[k].min <= deg && deg <= custom_masks[k].max)
 						custom = true;
 				}
 				double d = fans[j]->points[i].distance / 1000.0;
