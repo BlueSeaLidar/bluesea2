@@ -8,7 +8,7 @@ project(bluesea2)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  dynamic_reconfigure
+#   dynamic_reconfigure
   rosconsole
   roscpp
   sensor_msgs
@@ -95,9 +95,9 @@ generate_messages(
 #   cfg/DynReconf1.cfg
 #   cfg/DynReconf2.cfg
 # )
-generate_dynamic_reconfigure_options(
-	cfg/DynParams.cfg
-)
+# generate_dynamic_reconfigure_options(
+# 	cfg/DynParams.cfg
+# )
 
 
 ###################################
