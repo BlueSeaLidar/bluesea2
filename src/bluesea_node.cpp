@@ -635,6 +635,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			fans[j]->points[i].degree = deg;
 		}
 	}
+	//printf("%d\n",N);
 	// make  min_ang max_ang  convert to mask
 	msg.header.stamp.sec = ts_beg[0];
 	msg.header.stamp.nsec = ts_beg[1];
@@ -1228,15 +1229,14 @@ int main(int argc, char **argv)
 	priv_nh.param("rpm", init_rpm, -1); // set motor RPM
 	// angle composate
 	bool hard_resample, with_soft_resample;
-	double resample_res;
+	double resample_res,resample_res2;
 	priv_nh.param("hard_resample", hard_resample, false);	   // resample angle resolution
 	priv_nh.param("soft_resample", with_soft_resample, false); // resample angle resolution
-	if (!hard_resample)
-		resample_res = -1;
-	else
-		priv_nh.param("resample_res", resample_res, -1.0); // resample angle resolution
-
+	priv_nh.param("resample_res", resample_res, -1.0); // resample angle resolution
 	
+	if (!hard_resample)
+		resample_res2 = -1;	
+
 	int with_smooth, with_deshadow;
 	priv_nh.param("with_smooth", with_smooth, -1);	   // lidar data smooth filter
 	priv_nh.param("with_deshadow", with_deshadow, -1); // data shadow filter
@@ -1252,7 +1252,7 @@ int main(int argc, char **argv)
 	/*****************************SET arg end************************************/
 	CommandList cmdlist;
 	memset(&cmdlist, 0, sizeof(CommandList));
-	getCMDList(cmdlist, g_type, uuid, model, init_rpm, resample_res, with_smooth, with_deshadow, enable_alarm_msg, direction, unit_is_mm, with_confidence, ats);
+	getCMDList(cmdlist, g_type, uuid, model, init_rpm, resample_res2, with_smooth, with_deshadow, enable_alarm_msg, direction, unit_is_mm, with_confidence, ats);
 	// Synthesize the full  log path
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
