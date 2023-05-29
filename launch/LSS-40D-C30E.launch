@@ -26,6 +26,7 @@
     <rosparam param="mask2" >[-1,0]</rosparam> 
     <param name="error_circle" value="3"/>
     <param name="error_scale" value="0.9"/>
+
     #CONNECT#
     <param name="type" value="udp" />
     <param name="lidar_port" value="6543" />

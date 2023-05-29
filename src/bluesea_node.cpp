@@ -23,6 +23,7 @@
 #include <signal.h>
 #include "reader.h"
 #include "data_process.h"
+#include"algorithmAPI.h"
 HReader g_reader = NULL;
 std::string g_type = "uart";
 bool g_should_start = true;
@@ -306,7 +307,6 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 			}
 		}
 	}
-	//printf("%s %d  %d\n",__FUNCTION__,__LINE__,cnt);
 	return cnt;
 }
 
@@ -613,9 +613,10 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 					  double min_dist, double max_dist, bool with_filter, double min_ang, double max_ang,
 					  bool inverted, bool reversed, double zero_shift,
 					  bool from_zero, uint32_t *ts_beg, uint32_t *ts_end,
-					  const std::vector<Range> &custom_masks, int collect_angle)
+					  const std::vector<Range> &custom_masks, int collect_angle,
+					  bool filter_open,int filter_type,float max_range,float min_range,double max_range_difference,int filter_window)
 {
-	sensor_msgs::LaserScan msg;
+	sensor_msgs::LaserScan msg,output_scan;
 	int N = 0;
 	if (zero_shift > M_PI || zero_shift < -M_PI)
 	{
@@ -635,7 +636,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			fans[j]->points[i].degree = deg;
 		}
 	}
-	//printf("%d\n",N);
+	
 	// make  min_ang max_ang  convert to mask
 	msg.header.stamp.sec = ts_beg[0];
 	msg.header.stamp.nsec = ts_beg[1];
@@ -822,7 +823,12 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			idx++;
 		}
 	}
-	laser_pub.publish(msg);
+	
+	output_scan=msg;
+	if(filter_open)
+		filter(msg, output_scan,filter_type, max_range, min_range, max_range_difference,filter_window);
+	
+	laser_pub.publish(output_scan);
 }
 
 void PublishCloud(ros::Publisher &cloud_pub, int nfan, RawData **fans, std::string &frame_id,
@@ -1219,6 +1225,17 @@ int main(int argc, char **argv)
 	priv_nh.param("error_scale", error_scale, 0.9);
 
 	/*****************************DATA arg end************************************/
+	/*******************************FITTER arg start******************************/
+	bool filter_open;
+	int filter_type=1,filter_window;
+	double max_range,min_range,max_range_difference;
+	priv_nh.param("filter_open", filter_open, false);
+	//priv_nh.param("filter_type", filter_type, 1);
+	priv_nh.param("max_range", max_range, 20.0);
+	priv_nh.param("min_range", min_range, 0.5);
+	priv_nh.param("max_range_difference", max_range_difference, 0.1);
+	priv_nh.param("filter_window", filter_window, 1);
+	/*******************************FITTER arg end******************************/
 	/*****************************GET arg start************************************/
 	int uuid, model;
 	priv_nh.param("uuid", uuid, -1);
@@ -1365,7 +1382,8 @@ int main(int argc, char **argv)
 							PublishLaserScan(laser_pubs[i], n, fans, frame_id, min_dist, max_dist,
 											 with_angle_filter, min_angle, max_angle,
 											 inverted, reversed, zero_shift, from_zero,
-											 ts_beg, ts_end, custom_masks, hubs[i]->offsetangle);
+											 ts_beg, ts_end, custom_masks, hubs[i]->offsetangle,
+											 filter_open,filter_type,max_range,min_range,max_range_difference,filter_window);
 						}
 
 						if (output_cloud)

@@ -7,7 +7,7 @@
      #DATA#
     <param name="logPath" value="/tmp/log"/>
     <param name="raw_bytes" value="3"/>
-    <param name="min_dist" value="0.1"/>
+    <param name="min_dist" value="0.001"/>
     <param name="max_dist" value="50.0"/>
     <param name="zero_shift" value="0"/>
     <param name="from_zero" value="false"/>
@@ -26,6 +26,12 @@
     <rosparam param="mask2" >[-1,0]</rosparam> 
     <param name="error_circle" value="3"/>
     <param name="error_scale" value="0.9"/>
+    #FITTER#
+    <param name="filter_open" value="true"/>#滤波生效开关
+    <param name="max_range" value="20"/> #滤波生效的最大距离
+    <param name="min_range" value="0.5"/>#滤波生效的最小距离
+    <param name="max_range_difference" value="0.1"/>#离异点判断的物理范围
+    <param name="filter_window" value="1"/>#判断离异点下标的范围
     #CONNECT#
     <param name="type" value="udp" />
     <param name="lidar_port" value="6543" />

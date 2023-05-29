@@ -18,7 +18,7 @@
     <param name="inverted" value="false"/>
     <param name="reversed" value="false"/>
     <param name="hard_resample" value="false"/>
-    <param name="soft_resample" value="false"/>
+    <param name="soft_resample" value="true"/>
     <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-3.1415926"/>
     <param name="max_angle" value="3.1415926"/> 
@@ -30,14 +30,14 @@
     <param name="type" value="udp" />
     <param name="lidar_port" value="5000" />
     <param name="local_port" value="50122" />
-    <param name="lidar_ip" value="192.168.158.98"/>
+    <param name="lidar_ip" value="192.168.158.91"/>
     <param name="group_listener" value="false" />
     <param name="group_ip" value="224.0.0.11" />
     #GET#
     <param name="uuid" value="-1" />
     #SET#
     <param name="rpm" value="-1"/>
-    <param name="resample_res" value="-1"/>
+    <param name="resample_res" value="1.5"/>
     <param name="with_smooth" value="-1" />
     <param name="with_deshadow" value="-1" />
     <param name="alarm_msg" value="-1"/>
@@ -45,5 +45,3 @@
   </node>
  </group>
 </launch>
-
-

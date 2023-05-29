@@ -18,7 +18,7 @@
     <param name="inverted" value="false"/>
     <param name="reversed" value="false"/>
     <param name="hard_resample" value="false"/>
-    <param name="soft_resample" value="false"/>
+    <param name="soft_resample" value="true"/>
     <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-3.1415926"/>
     <param name="max_angle" value="3.1415926"/> 
@@ -35,7 +35,7 @@
     <param name="model" value="1"/>
     #SET#
     <param name="rpm" value="-1"/>
-    <param name="resample_res" value="-1"/>
+    <param name="resample_res" value="0.6"/>
     <param name="unit_is_mm" value="-1"/>
     <param name="with_smooth" value="-1" />
     <param name="with_deshadow" value="-1" />
@@ -43,7 +43,3 @@
   </node>
  </group>
 </launch>
-
-
-
-
