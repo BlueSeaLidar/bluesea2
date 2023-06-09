@@ -1253,7 +1253,9 @@ int main(int argc, char **argv)
 	
 	if (!hard_resample)
 		resample_res2 = -1;	
-
+	else
+		resample_res2 = resample_res;
+		
 	int with_smooth, with_deshadow;
 	priv_nh.param("with_smooth", with_smooth, -1);	   // lidar data smooth filter
 	priv_nh.param("with_deshadow", with_deshadow, -1); // data shadow filter
