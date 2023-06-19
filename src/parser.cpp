@@ -1069,9 +1069,6 @@ bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int
 	char result[3] = {0};
 	result[2] = '\0';
 	
-
-	//printf(" %d %s %s\n",__LINE__,__FUNCTION__,parser->cmd.uuid);
-
 	for (unsigned int i = 0; i < index; i++)
 	{
 		cmdLength = strlen(parser->cmd.uuid);

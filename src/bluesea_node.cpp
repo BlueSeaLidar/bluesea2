@@ -23,11 +23,12 @@
 #include <signal.h>
 #include "reader.h"
 #include "data_process.h"
-#include"algorithmAPI.h"
+#include "algorithmAPI.h"
 HReader g_reader = NULL;
 std::string g_type = "uart";
 bool g_should_start = true;
-// int g_offsetAngle;
+#define BLUESEA2_VERSION "1.1"
+
 
 struct Range
 {
@@ -91,6 +92,9 @@ void PublishData(HPublish pub, int n, RawData **fans)
 
 	pthread_mutex_lock(&hub->mtx);
 
+	// gettimeofday(&begin,NULL);
+	// long long beginTime = (long long)begin.tv_sec * 1000000 + (long long)begin.tv_usec;
+
 	if (hub->nfan + n > MAX_FANS)
 	{
 		int nr = hub->nfan + n - MAX_FANS;
@@ -110,6 +114,10 @@ void PublishData(HPublish pub, int n, RawData **fans)
 	{
 		hub->fans[hub->nfan++] = fans[i];
 	}
+
+	// gettimeofday(&begin,NULL);
+	// long long end = (long long)begin.tv_sec * 1000000 + (long long)begin.tv_usec;
+	// printf("time  2 is:%ld\n",end-beginTime);
 
 	pthread_mutex_unlock(&hub->mtx);
 
@@ -212,6 +220,10 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 	PubHub *hub = (PubHub *)pub;
 	// RawData* drop[MAX_FANS];
 	pthread_mutex_lock(&hub->mtx);
+
+	// gettimeofday(&begin,NULL);
+	// long long beginTime = (long long)begin.tv_sec * 1000000 + (long long)begin.tv_usec;
+
 	int cnt = 0;
 
 	for (int i = 1; i < hub->nfan; i++)
@@ -236,8 +248,12 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 			hub->fans[i - cnt] = hub->fans[i];
 		hub->nfan -= cnt;
 	}
+	// gettimeofday(&begin,NULL);
+	// long long end = (long long)begin.tv_sec * 1000000 + (long long)begin.tv_usec;
+	// printf("time  is:%ld\n",end-beginTime);
 	pthread_mutex_unlock(&hub->mtx);
-	// printf("%s %d  %d\n",__FUNCTION__,__LINE__,cnt);
+
+	//printf("%s %d  %d\n",__FUNCTION__,__LINE__,cnt);
 
 	if (cnt > 0)
 	{
@@ -291,15 +307,16 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 	}
 	if (cnt > 0)
 	{
-		if (with_resample&&resample_res>0)
+		if (with_resample && resample_res > 0)
 		{
 			for (int i = 0; i < cnt; i++)
 			{
 				int NN = fans[i]->span / (10 * resample_res);
 				if (NN < fans[i]->N)
 				{
-					//printf("%s %d  %d,NN:%d,fans[i]->N:%d  %lf\n",__FUNCTION__,__LINE__,cnt,NN,fans[i]->span,resample_res);
-					resample(fans[i], NN);				}
+					// printf("%s %d  %d,NN:%d,fans[i]->N:%d  %lf\n",__FUNCTION__,__LINE__,cnt,NN,fans[i]->span,resample_res);
+					resample(fans[i], NN);
+				}
 				else if (NN > fans[i]->N)
 				{
 					printf("fan [%d] %d less than %d\n", i, fans[i]->N, NN);
@@ -453,7 +470,7 @@ void getMSGData(sensor_msgs::LaserScan &msg, RawData *fan, bool reversed,
 				msg.ranges[N] = d;
 
 			msg.intensities[N] = fan->points[i].confidence;
-			printf(" %d %d  %d  %lf \n", fan->points[i].distance, fan->points[i].confidence, N, fan->points[i].degree);
+			//printf(" %d %d  %d  %lf \n", fan->points[i].distance, fan->points[i].confidence, N, fan->points[i].degree);
 			N++;
 		}
 	}
@@ -587,7 +604,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 				msg.angle_increment = -(fan->span * M_PI / 1800) / fan->N;
 			}
 			getMSGData(msg, fan, reversed, min_ang, max_ang, min_dist, max_dist, with_filter, custom_masks, i, index);
-			printf(" %d %d  %d %d \n", tmpdata[0].angle, tmpdata[0].span, tmpdata[1].angle, tmpdata[1].span);
+			//printf(" %d %d  %d %d \n", tmpdata[0].angle, tmpdata[0].span, tmpdata[1].angle, tmpdata[1].span);
 			laser_pub.publish(msg);
 			// printf(" %f %f  %d %d \n", min_pos,max_pos,index,i);
 		}
@@ -614,9 +631,9 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 					  bool inverted, bool reversed, double zero_shift,
 					  bool from_zero, uint32_t *ts_beg, uint32_t *ts_end,
 					  const std::vector<Range> &custom_masks, int collect_angle,
-					  bool filter_open,int filter_type,float max_range,float min_range,double max_range_difference,int filter_window)
+					  bool filter_open, int filter_type, float max_range, float min_range, double max_range_difference, int filter_window)
 {
-	sensor_msgs::LaserScan msg,output_scan;
+	sensor_msgs::LaserScan msg, output_scan;
 	int N = 0;
 	if (zero_shift > M_PI || zero_shift < -M_PI)
 	{
@@ -636,7 +653,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			fans[j]->points[i].degree = deg;
 		}
 	}
-	
+
 	// make  min_ang max_ang  convert to mask
 	msg.header.stamp.sec = ts_beg[0];
 	msg.header.stamp.nsec = ts_beg[1];
@@ -823,11 +840,11 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			idx++;
 		}
 	}
-	
-	output_scan=msg;
-	if(filter_open)
-		filter(msg, output_scan,filter_type, max_range, min_range, max_range_difference,filter_window);
-	
+
+	output_scan = msg;
+	if (filter_open)
+		filter(msg, output_scan, filter_type, max_range, min_range, max_range_difference, filter_window);
+
 	laser_pub.publish(output_scan);
 }
 
@@ -959,12 +976,11 @@ void getCMDList(CommandList &cmdlist, std::string type, int uuid, int model,
 		sprintf(cmdlist.rpm, "LSRPM:%dH", init_rpm);
 	if (resample_res >= 0)
 	{
-		
+
 		if (resample_res > 0 && resample_res < 1)
 			sprintf(cmdlist.res, "LSRES:%dH", (int)(resample_res * 1000));
 		else
 			sprintf(cmdlist.res, "LSRES:%dH", (int)resample_res);
-
 	}
 	if (with_smooth >= 0)
 	{
@@ -1007,7 +1023,7 @@ int autoGetFirstAngle2(HPublish pub, bool from_zero)
 
 	for (int i = 0; i < hub->nfan; i++)
 	{
-		//printf("angle %d  i:%d\n", hub->fans[i]->angle,i);
+		// printf("angle %d  i:%d\n", hub->fans[i]->angle,i);
 		ret = autoGetFirstAngle(*(hub->fans[i]), from_zero, raws, result);
 		if (ret >= 0 || ret == -2)
 		{
@@ -1150,7 +1166,7 @@ int main(int argc, char **argv)
 		range2.max = 180;
 		custom_masks.push_back(range1);
 		custom_masks.push_back(range2);
-		//printf("Visible range:%lf %lf %lf %lf\n", range1.min, range1.max, range2.min, range2.max);
+		// printf("Visible range:%lf %lf %lf %lf\n", range1.min, range1.max, range2.min, range2.max);
 	}
 
 	for (int i = 1;; i++)
@@ -1207,18 +1223,19 @@ int main(int argc, char **argv)
 	// Synthesize the full  log path
 	priv_nh.param("logPath", logPathTmp, std::string("/tmp/log"));
 	char logPath[256] = {0};
-	struct stat buffer;
-	if (stat(logPathTmp.c_str(), &buffer) != 0)
+	if (!logPathTmp.empty())
 	{
-		mkpathAll(logPathTmp, 0755);
+		struct stat buffer;
+		if (stat(logPathTmp.c_str(), &buffer) != 0)
+		{
+			mkpathAll(logPathTmp, 0755);
+		}
+		time_t now;
+		struct tm *tm_now;
+		time(&now);
+		tm_now = localtime(&now);
+		sprintf(logPath, "%s/log_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year + 1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 	}
-	time_t now;
-	struct tm *tm_now;
-	time(&now);
-	tm_now = localtime(&now);
-
-	sprintf(logPath, "%s/log_%04d%02d%02d_%02d%02d%02d.txt", logPathTmp.c_str(), tm_now->tm_year + 1900, tm_now->tm_mon, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
-
 	int error_circle = 0;
 	double error_scale = 0;
 	priv_nh.param("error_circle", error_circle, 3);
@@ -1227,10 +1244,10 @@ int main(int argc, char **argv)
 	/*****************************DATA arg end************************************/
 	/*******************************FITTER arg start******************************/
 	bool filter_open;
-	int filter_type=1,filter_window;
-	double max_range,min_range,max_range_difference;
+	int filter_type = 1, filter_window;
+	double max_range, min_range, max_range_difference;
 	priv_nh.param("filter_open", filter_open, false);
-	//priv_nh.param("filter_type", filter_type, 1);
+	// priv_nh.param("filter_type", filter_type, 1);
 	priv_nh.param("max_range", max_range, 20.0);
 	priv_nh.param("min_range", min_range, 0.5);
 	priv_nh.param("max_range_difference", max_range_difference, 0.1);
@@ -1246,16 +1263,16 @@ int main(int argc, char **argv)
 	priv_nh.param("rpm", init_rpm, -1); // set motor RPM
 	// angle composate
 	bool hard_resample, with_soft_resample;
-	double resample_res,resample_res2;
+	double resample_res, resample_res2;
 	priv_nh.param("hard_resample", hard_resample, false);	   // resample angle resolution
 	priv_nh.param("soft_resample", with_soft_resample, false); // resample angle resolution
-	priv_nh.param("resample_res", resample_res, -1.0); // resample angle resolution
-	
+	priv_nh.param("resample_res", resample_res, -1.0);		   // resample angle resolution
+
 	if (!hard_resample)
-		resample_res2 = -1;	
+		resample_res2 = -1;
 	else
 		resample_res2 = resample_res;
-		
+
 	int with_smooth, with_deshadow;
 	priv_nh.param("with_smooth", with_smooth, -1);	   // lidar data smooth filter
 	priv_nh.param("with_deshadow", with_deshadow, -1); // data shadow filter
@@ -1272,6 +1289,7 @@ int main(int argc, char **argv)
 	CommandList cmdlist;
 	memset(&cmdlist, 0, sizeof(CommandList));
 	getCMDList(cmdlist, g_type, uuid, model, init_rpm, resample_res2, with_smooth, with_deshadow, enable_alarm_msg, direction, unit_is_mm, with_confidence, ats);
+	printf("ROS VERSION:%s\n",BLUESEA2_VERSION);
 	// Synthesize the full  log path
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 
@@ -1298,7 +1316,7 @@ int main(int argc, char **argv)
 	PubHub *hubs[MAX_LIDARS] = {NULL};
 	for (int i = 0; i < lidar_count; i++)
 	{
-		parsers[i] = ParserOpen(raw_bytes, with_chk, dev_id, error_circle, error_scale,from_zero, logPath,cmdlist,(char*)lidar_ips[i].c_str(),lidar_ports[i]);
+		parsers[i] = ParserOpen(raw_bytes, with_chk, dev_id, error_circle, error_scale, from_zero, logPath, cmdlist, (char *)lidar_ips[i].c_str(), lidar_ports[i]);
 		hubs[i] = new PubHub;
 		hubs[i]->nfan = 0;
 		hubs[i]->offsetangle = -1;
@@ -1345,58 +1363,52 @@ int main(int argc, char **argv)
 				if (ret >= 0)
 				{
 					hubs[i]->offsetangle = ret / 10;
-					printf("start  offset angle %d\n", hubs[i]->offsetangle);
+					printf("lidar start work,offset angle %d\n", hubs[i]->offsetangle);
 				}
-				// printf("start  offset angle %d\n", hubs[i]->offsetangle);
 				continue;
+			}
+			RawData *fans[MAX_FANS] = {NULL};
+			if (!output_360)
+			{
+				if (GetFan(hubs[i], with_soft_resample, resample_res, fans))
+				{
+					if (output_scan)
+					{
+						PublishLaserScanFan(laser_pubs[i], fans[0], frame_id,
+											min_dist, max_dist,
+											with_angle_filter, min_angle, max_angle,
+											inverted, reversed, zero_shift, from_zero,
+											custom_masks, hubs[i]->offsetangle);
+					}
+					delete fans[0];
+					idle = false;
+				}
 			}
 			else
 			{
-				idle = false;
-				RawData *fans[MAX_FANS] = {NULL};
-				if (!output_360)
+
+				uint32_t ts_beg[2], ts_end[2];
+				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, 0, ts_beg, ts_end, error_circle, error_scale);
+				if (n > 0)
 				{
-					if (GetFan(hubs[i], with_soft_resample, resample_res, fans))
+					idle = false;
+					if (output_scan)
 					{
-						if (output_scan)
-						{
-							PublishLaserScanFan(laser_pubs[i], fans[0], frame_id,
-												min_dist, max_dist,
-												with_angle_filter, min_angle, max_angle,
-												inverted, reversed, zero_shift, from_zero,
-												custom_masks, hubs[i]->offsetangle);
-						}
-						delete fans[0];
-						idle = false;
+						PublishLaserScan(laser_pubs[i], n, fans, frame_id, min_dist, max_dist,
+										 with_angle_filter, min_angle, max_angle,
+										 inverted, reversed, zero_shift, from_zero,
+										 ts_beg, ts_end, custom_masks, hubs[i]->offsetangle,
+										 filter_open, filter_type, max_range, min_range, max_range_difference, filter_window);
 					}
-					// printf("%s %d\n",__FUNCTION__,__LINE__);
-				}
-				else
-				{
 
-					uint32_t ts_beg[2], ts_end[2];
-					int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, 0, ts_beg, ts_end, error_circle, error_scale);
-					if (n > 0)
+					if (output_cloud)
 					{
-						idle = false;
-						if (output_scan)
-						{
-							PublishLaserScan(laser_pubs[i], n, fans, frame_id, min_dist, max_dist,
-											 with_angle_filter, min_angle, max_angle,
-											 inverted, reversed, zero_shift, from_zero,
-											 ts_beg, ts_end, custom_masks, hubs[i]->offsetangle,
-											 filter_open,filter_type,max_range,min_range,max_range_difference,filter_window);
-						}
-
-						if (output_cloud)
-						{
-							PublishCloud(cloud_pubs[i], n, fans, frame_id, max_dist,
-										 with_angle_filter, min_angle, max_angle, hubs[i]->offsetangle);
-						}
-
-						for (int i = 0; i < n; i++)
-							delete fans[i];
+						PublishCloud(cloud_pubs[i], n, fans, frame_id, max_dist,
+									 with_angle_filter, min_angle, max_angle, hubs[i]->offsetangle);
 					}
+
+					for (int i = 0; i < n; i++)
+						delete fans[i];
 				}
 			}
 		}

@@ -120,6 +120,6 @@ bool filter(const sensor_msgs::LaserScan &input_scan, sensor_msgs::LaserScan &ou
     }
     ++i;
   }
-  printf("%d not valid num:%d\n",i,errnum);
+  printf("%ld not valid num:%d\n",i,errnum);
   return true;
 }

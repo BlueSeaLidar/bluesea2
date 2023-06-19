@@ -86,7 +86,7 @@ bool udp_talk_S_PACK(int fd_udp, const char *ip, int port, int n, const char *cm
 	unsigned short sn = rand();
 
 	send_cmd_udp(fd_udp, ip, port, 0x0053, sn, n, cmd, logPath);
-
+	int ntry = 0;
 	for (int i = 0; i < 1000; i++)
 	{
 		fd_set fds;
@@ -106,6 +106,7 @@ bool udp_talk_S_PACK(int fd_udp, const char *ip, int port, int n, const char *cm
 		// read UDP data
 		if (FD_ISSET(fd_udp, &fds))
 		{
+			ntry++;
 			sockaddr_in addr;
 			socklen_t sz = sizeof(addr);
 
@@ -125,7 +126,7 @@ bool udp_talk_S_PACK(int fd_udp, const char *ip, int port, int n, const char *cm
 		}
 	}
 
-	printf("read %d packets, not response\n");
+	printf("read %d packets, not response\n",ntry);
 	return false;
 }
 
@@ -137,7 +138,6 @@ bool udp_talk_C_PACK(int fd_udp, const char *ip, int port,
 	// int fd_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
 	printf("send command : \'%s\' \n", cmd);
-
 	unsigned short sn = rand();
 
 	send_cmd_udp(fd_udp, ip, port,0x0043, sn, n, cmd, logPath);
@@ -200,7 +200,6 @@ bool udp_talk_C_PACK(int fd_udp, const char *ip, int port,
 
 void *UdpThreadProc(void *p)
 {
-
 	UDPInfo *info = (UDPInfo *)p;
 	int fd_udp = info->fd_udp;
 	int error_num = 0;
@@ -234,7 +233,6 @@ void *UdpThreadProc(void *p)
 	}
 	while (1)
 	{
-
 		fd_set fds;
 		FD_ZERO(&fds);
 		FD_SET(fd_udp, &fds);
@@ -262,7 +260,6 @@ void *UdpThreadProc(void *p)
 		}
 
 		gettimeofday(&tv, NULL);
-
 		// read UDP data
 		if (FD_ISSET(fd_udp, &fds))
 		{
@@ -330,6 +327,7 @@ void *UdpThreadProc(void *p)
 			tto = tv.tv_sec + 3;
 		}
 	}
+	
 	return NULL;
 }
 
