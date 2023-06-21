@@ -551,7 +551,7 @@ static int MsgProc(Parser *parser, int len, unsigned char *buf)
 	else
 	{
 		printf("unknown %d bytes : %02x ", len, buf[0]);
-		for (int i = 1; i < len && i < 16; i++)
+		for (int i = 1; i < len; i++)
 			printf("%02x ", buf[i]);
 		printf("\n");
 	}
@@ -566,9 +566,9 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 	*nfan = 0;
 
 	int unk = 0;
-	unsigned char unknown[512];
+	unsigned char unknown[1024];
 
-	while (idx < len - 32 && *nfan < max_fan)
+	while (idx < len - 128 && *nfan < max_fan)
 	{
 		unsigned char type = is_data(buf + idx);
 		if (type == 0)
@@ -605,13 +605,18 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 						printf("motor head high voltage\n");
 				}
 			}
+			else if( ret==-1)
+			{
+				parser->rest_len=0;
+				memset(parser->rest_buf,0,sizeof(parser->rest_buf));
+			}
 			unk = 0;
 		}
 
 		RawDataHdr hdr;
 		memcpy(&hdr, buf + idx, HDR_SIZE);
 
-		if (hdr.N > MAX_POINTS || hdr.N < 10)
+		if (hdr.N > MAX_POINTS)
 		{
 			printf("points number %d seem not correct\n", hdr.N);
 			idx += 2;
@@ -1068,7 +1073,19 @@ bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int
 	char buf[32];
 	char result[3] = {0};
 	result[2] = '\0';
-	
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.ats);
+		if (cmdLength <= 0)
+			break;
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.ats, result, parser->logPath))
+		{
+			printf("set ats %s\n", result);
+			break;
+		}
+	}
+
 	for (unsigned int i = 0; i < index; i++)
 	{
 		cmdLength = strlen(parser->cmd.uuid);
@@ -1087,7 +1104,7 @@ bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int
 			break;
 		}
 	}
-	//printf(" %d %s %s\n",__LINE__,__FUNCTION__,parser->cmd.model);
+	// printf(" %d %s %s\n",__LINE__,__FUNCTION__,parser->cmd.model);
 	for (unsigned int i = 0; i < index; i++)
 	{
 		cmdLength = strlen(parser->cmd.model);
@@ -1179,17 +1196,6 @@ bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int
 		}
 	}
 
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.ats);
-		if (cmdLength <= 0)
-			break;
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.ats, result, parser->logPath))
-		{
-			printf("set ats %s\n", result);
-			break;
-		}
-	}
 	return true;
 }
 
@@ -1315,7 +1321,7 @@ bool setup_lidar_uart(HParser hP, void *func1, void *func2, const char *type, in
 bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int handle)
 {
 	VPC_TALK func1_pack = (VPC_TALK)func1;
-	//S_PACK func2_pack = (S_PACK)func2;
+	// S_PACK func2_pack = (S_PACK)func2;
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
 	int cmdLength;
@@ -1325,10 +1331,21 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 
 	for (unsigned int i = 0; i < index; i++)
 	{
+		cmdLength = strlen(parser->cmd.ats);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.ats, 2, result, parser->logPath))
+		{
+			printf("set ats %s\n", result);
+			break;
+		}
+	}
+	for (unsigned int i = 0; i < index; i++)
+	{
 		cmdLength = strlen(parser->cmd.uuid);
 		if (cmdLength <= 0)
 			break;
-		if (func1_pack(handle, 0x0043,cmdLength, parser->cmd.uuid, 36,buf, parser->logPath))
+		if (func1_pack(handle, 0x0043, cmdLength, parser->cmd.uuid, 36, buf, parser->logPath))
 		{
 			printf("get product SN : \'%s\'\n", buf);
 			break;
@@ -1355,7 +1372,7 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 		if (cmdLength <= 0)
 			break;
 
-		if (func1_pack(handle,0x0053, cmdLength, parser->cmd.fitter, 16,result, parser->logPath))
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.fitter, 16, result, parser->logPath))
 		{
 			printf("set LiDAR shadow filter %s %s\n", parser->cmd.fitter, result);
 			break;
@@ -1368,7 +1385,7 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 		if (cmdLength <= 0)
 			break;
 
-		if (func1_pack(handle,0x0053, cmdLength, parser->cmd.smooth,16, result, parser->logPath))
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.smooth, 16, result, parser->logPath))
 		{
 			printf("set LiDAR smooth  %s %s\n", parser->cmd.smooth, result);
 			break;
@@ -1381,7 +1398,7 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 		if (cmdLength <= 0)
 			break;
 
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.rpm,16, result, parser->logPath))
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.rpm, 16, result, parser->logPath))
 		{
 			printf("%s %s\n", parser->cmd.rpm, result);
 			break;
@@ -1394,9 +1411,9 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 		if (cmdLength <= 0)
 			break;
 
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.res, 2,result , parser->logPath))
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.res, 2, result, parser->logPath))
 		{
-			printf("%s %s\n", parser->cmd.res,result);
+			printf("%s %s\n", parser->cmd.res, result);
 			break;
 		}
 	}
@@ -1407,7 +1424,7 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 		cmdLength = strlen(parser->cmd.alarm);
 		if (cmdLength <= 0)
 			break;
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.alarm, 2,result, parser->logPath))
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.alarm, 2, result, parser->logPath))
 		{
 			printf("set alarm_msg %s\n", result);
 			break;
@@ -1419,28 +1436,14 @@ bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int
 		cmdLength = strlen(parser->cmd.direction);
 		if (cmdLength <= 0)
 			break;
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.direction, 2,result, parser->logPath))
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.direction, 2, result, parser->logPath))
 		{
 			printf("set direction %s\n", result);
 			break;
 		}
 	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.ats);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle,  0x0053, cmdLength, parser->cmd.ats, 2,result, parser->logPath))
-		{
-			printf("set ats %s\n", result);
-			break;
-		}
-	}
 	return true;
 }
-
-
 
 void saveLog(const char *logPath, int type, const char *ip, const int port, const unsigned char *buf, unsigned int len)
 {

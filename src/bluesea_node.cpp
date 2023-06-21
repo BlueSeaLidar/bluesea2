@@ -27,7 +27,7 @@
 HReader g_reader = NULL;
 std::string g_type = "uart";
 bool g_should_start = true;
-#define BLUESEA2_VERSION "1.1"
+#define BLUESEA2_VERSION "1.1.1"
 
 
 struct Range
@@ -479,7 +479,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 						 std::string &frame_id,
 						 double min_dist, double max_dist,
 						 bool with_filter, double min_ang, double max_ang,
-						 bool inverted, bool reversed, double zero_shift, bool from_zero,
+						 bool inverted, bool reversed, double zero_shift,bool from_zero,
 						 const std::vector<Range> &custom_masks, int collect_angle)
 {
 	int N = fan->N;
@@ -559,9 +559,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan,
 		}
 		msg.intensities.resize(N); // fan->N);
 		msg.ranges.resize(N);	   // fan->N);
-		// msg.angle_min = M_PI;
-		// 	msg.angle_max = -M_PI + (2 * M_PI) / N;
-		// 	msg.angle_increment = -M_PI * 2 / N;
+
 		if (inverted)
 		{
 			msg.angle_min = min_pos;
