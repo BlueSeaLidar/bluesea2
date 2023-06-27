@@ -15,7 +15,7 @@
     <param name="output_cloud" value="false"/>
     <param name="output_360" value="true" />
     <param name="with_checksum" value="true"/>
-    <param name="inverted" value="false"/>
+    <param name="inverted" value="true"/>
     <param name="reversed" value="false"/>
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>
