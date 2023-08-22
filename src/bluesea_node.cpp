@@ -27,7 +27,7 @@
 HReader g_reader = NULL;
 std::string g_type = "uart";
 bool g_should_start = true;
-#define BLUESEA2_VERSION "1.1.1"
+#define BLUESEA2_VERSION "1.2.0"
 
 
 struct Range
@@ -248,12 +248,8 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 			hub->fans[i - cnt] = hub->fans[i];
 		hub->nfan -= cnt;
 	}
-	// gettimeofday(&begin,NULL);
-	// long long end = (long long)begin.tv_sec * 1000000 + (long long)begin.tv_usec;
-	// printf("time  is:%ld\n",end-beginTime);
 	pthread_mutex_unlock(&hub->mtx);
 
-	//printf("%s %d  %d\n",__FUNCTION__,__LINE__,cnt);
 
 	if (cnt > 0)
 	{
@@ -262,7 +258,7 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 		ts_beg[0] = fans[0]->ts[0];
 		ts_beg[1] = fans[0]->ts[1];
 
-		// std::cout<<"ts:"<<fans[0]->ts[0]<<" "<<fans[0]->ts[1]<<std::endl;
+		//std::cout<<"ts:"<<fans[0]->ts[0]<<" "<<fans[0]->ts[1]<<std::endl;
 		// std::cout<<"ROS Time:"<<ros::Time::now()<<std::endl;
 
 		for (int i = 0; i < cnt - 1; i++)
@@ -817,8 +813,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 	{
 		for (int i = 0; i <= N - 1; i++)
 		{
-			// printf(" %d %d  %d  %lf \n", datapoint[i].distance,datapoint[i].confidence,N,datapoint[i].degree);
-
+			//printf(" %d %d  %d  %lf \n", datapoint[i].distance,datapoint[i].confidence,N,datapoint[i].degree);
 			double deg = ROSAng(datapoint[i].degree);
 			double d = datapoint[i].distance / 1000.0;
 			bool custom = false;
@@ -838,11 +833,9 @@ void PublishLaserScan(ros::Publisher &laser_pub, int nfan, RawData **fans, std::
 			idx++;
 		}
 	}
-
 	output_scan = msg;
 	if (filter_open)
 		filter(msg, output_scan, filter_type, max_range, min_range, max_range_difference, filter_window);
-
 	laser_pub.publish(output_scan);
 }
 

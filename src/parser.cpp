@@ -59,7 +59,7 @@ static unsigned char is_data(unsigned char *buf)
 	if (buf[1] != 0xFA)
 		return 0;
 
-	if (buf[0] == 0xCE || buf[0] == 0xCF || buf[0] == 0xDF || buf[0] == 0xC7)
+	if (buf[0] == 0xCE || buf[0] == 0xCF || buf[0] == 0xDF || buf[0] == 0xC7|| buf[0] == 0xAA)
 		return buf[0];
 
 	return 0;
@@ -176,9 +176,9 @@ static RawData *GetData0xCE_3(const RawDataHdr &hdr, unsigned char *buf, uint32_
 	return dat;
 }
 
-static FanSegment *GetFanSegment(const RawDataHdr7 &hdr, uint8_t *pdat, bool /*with_chk*/)
+static FanSegment_C7 *GetFanSegment(const RawDataHdr7 &hdr, uint8_t *pdat, bool /*with_chk*/)
 {
-	FanSegment *fan_seg = new FanSegment;
+	FanSegment_C7 *fan_seg = new FanSegment_C7;
 	if (!fan_seg)
 	{
 		printf("out of memory\n");
@@ -220,7 +220,50 @@ static FanSegment *GetFanSegment(const RawDataHdr7 &hdr, uint8_t *pdat, bool /*w
 	}
 	return fan_seg;
 }
+static FanSegment_AA *GetFanSegment(const RawDataHdrAA &hdr, uint8_t *pdat, bool /*with_chk*/)
+{
+	FanSegment_AA *fan_seg = new FanSegment_AA;
+	if (!fan_seg)
+	{
+		printf("out of memory\n");
+		return NULL;
+	}
+	fan_seg->hdr = hdr;
+	fan_seg->next = NULL;
 
+	uint16_t sum = 0;
+	// if (with_chk)
+	{
+		uint16_t *pchk = (uint16_t *)pdat;
+		for (int i = 1; i < HDRAA_SIZE / 2; i++)
+			sum += pchk[i];
+	}
+
+	uint8_t *pDist = pdat + HDRAA_SIZE;
+	uint8_t *pAngle = pdat + HDRAA_SIZE + 2 * hdr.N;
+	uint8_t *energy = pdat + HDRAA_SIZE + 4 * hdr.N;
+
+	for (int i = 0; i < hdr.N; i++, pDist += 2, pAngle += 2)
+	{
+		fan_seg->dist[i] = ((uint16_t)(pDist[1]) << 8) | pDist[0];
+		fan_seg->angle[i] = ((uint16_t)(pAngle[1]) << 8) | pAngle[0];
+		fan_seg->energy[i] = energy[i];
+
+		sum += fan_seg->dist[i];
+		sum += fan_seg->angle[i];
+		sum += energy[i];
+	}
+
+	uint8_t *pchk = pdat + HDRAA_SIZE + 5 * hdr.N;
+	uint16_t chksum = ((uint16_t)(pchk[1]) << 8) | pchk[0];
+	if (chksum != sum)
+	{
+		printf("checksum error\n");
+		delete fan_seg;
+		return NULL;
+	}
+	return fan_seg;
+}
 void DecTimestamp(uint32_t ts, uint32_t *ts2)
 {
 	timeval tv;
@@ -238,7 +281,7 @@ void DecTimestamp(uint32_t ts, uint32_t *ts2)
 	ts2[1] = (ts % 1000) * 1000000;
 }
 
-static RawData *PackFanData(FanSegment *seg)
+static RawData *PackFanData(FanSegment_C7 *seg)
 {
 	RawData *dat = new RawData;
 	if (!dat)
@@ -274,8 +317,44 @@ static RawData *PackFanData(FanSegment *seg)
 
 	return dat;
 }
+static RawData *PackFanData(FanSegment_AA *seg)
+{
+	RawData *dat = new RawData;
+	if (!dat)
+	{
+		printf("out of memory\n");
+		return NULL;
+	}
+	memset(dat, 0, sizeof(RawData));
 
-static int GetFanPointCount(FanSegment *seg)
+	dat->code = 0xfaaa;
+	dat->N = seg->hdr.whole_fan;
+	dat->angle = seg->hdr.beg_ang / 100;					 // 0.1 degree
+	dat->span = (seg->hdr.end_ang - seg->hdr.beg_ang) / 100; // 0.1 degree
+	dat->fbase = 0;
+	dat->first = 0;
+	dat->last = 0;
+	dat->fend = 0;
+	dat->counterclockwise = 0;
+
+	dat->ts[0]=seg->hdr.second;
+    dat->ts[1]=seg->hdr.nano_sec/1000;
+	int count = 0;
+	while (seg)
+	{
+		for (int i = 0; i < seg->hdr.N; i++, count++)
+		{
+			dat->points[count].confidence = seg->energy[i];
+			dat->points[count].distance = seg->dist[i];
+			dat->points[count].degree = (seg->angle[i] + seg->hdr.beg_ang) / 1000.0;
+		}
+
+		seg = seg->next;
+	}
+
+	return dat;
+}
+static int GetFanPointCount(FanSegment_C7 *seg)
 {
 	int n = 0;
 
@@ -287,7 +366,18 @@ static int GetFanPointCount(FanSegment *seg)
 
 	return n;
 }
+static int GetFanPointCount(FanSegment_AA *seg)
+{
+	int n = 0;
 
+	while (seg)
+	{
+		n += seg->hdr.N;
+		seg = seg->next;
+	}
+
+	return n;
+}
 static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pdat)
 {
 	if (parser->dev_id != (u_int32_t)ANYONE && hdr.dev_id != parser->dev_id)
@@ -303,7 +393,7 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 		return NULL;
 	}
 
-	FanSegment *fan_seg = GetFanSegment(hdr, pdat, parser->with_chk);
+	FanSegment_C7 *fan_seg = GetFanSegment(hdr, pdat, parser->with_chk);
 	if (!fan_seg)
 	{
 		return NULL;
@@ -313,9 +403,113 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 
 	if (parser->fan_segs != NULL)
 	{
-		FanSegment *seg = parser->fan_segs;
+		FanSegment_C7 *seg =(FanSegment_C7*)parser->fan_segs;
 
 		if (seg->hdr.timestamp != fan_seg->hdr.timestamp)
+		{
+			printf("drop old fan segments\n");
+			while (seg)
+			{
+				parser->fan_segs = (FanSegment_AA*)seg->next;
+				delete seg;
+				seg =(FanSegment_C7*)parser->fan_segs;
+			}
+			parser->fan_segs =(FanSegment_AA*)fan_seg;
+		}
+		else
+		{
+			while (seg)
+			{
+				if (seg->hdr.ofset == fan_seg->hdr.ofset)
+				{
+					printf("drop duplicated segment\n");
+					delete fan_seg;
+					fan_seg = NULL;
+					break;
+				}
+				if (seg->next == NULL)
+				{
+					seg->next = fan_seg;
+					break;
+				}
+				seg = seg->next;
+			}
+		}
+	}
+
+	if (parser->fan_segs == NULL && fan_seg != NULL)
+	{
+		parser->fan_segs = (FanSegment_AA*)fan_seg;
+	}
+
+	// if (parser->fan_segs == NULL) { return NULL; }
+
+	unsigned int N = GetFanPointCount(parser->fan_segs);
+
+	if (N >= parser->fan_segs->hdr.whole_fan)
+	{
+		RawData *dat = NULL;
+
+		if (N == parser->fan_segs->hdr.whole_fan)
+		{
+			if (N > sizeof(dat->points) / sizeof(dat->points[0]))
+			{
+				printf("too many %d points in 1 fan\n", N);
+			}
+			else
+			{
+				dat = PackFanData(parser->fan_segs);
+			}
+		}
+
+		// remove segments
+		FanSegment_AA *seg = parser->fan_segs;
+		while (seg)
+		{
+			parser->fan_segs = seg->next;
+			delete seg;
+			seg = parser->fan_segs;
+		}
+
+		if (dat)
+		{
+			// SetTimeStamp(dat, );
+			// dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+		}
+
+		return dat;
+	}
+
+	return NULL;
+}
+
+static RawData *GetData0xAA(Parser *parser, const RawDataHdrAA &hdr, uint8_t *pdat)
+{
+	if (parser->dev_id != (u_int32_t)ANYONE && hdr.dev_id != parser->dev_id)
+	{
+		static time_t last = 0;
+		time_t t = time(NULL);
+		if (t > last)
+		{
+			printf("device id [%d] != my id [%d]\n", hdr.dev_id, parser->dev_id);
+			last = t;
+		}
+		// not my data
+		return NULL;
+	}
+	FanSegment_AA *fan_seg = GetFanSegment(hdr, pdat, parser->with_chk);
+	if (!fan_seg)
+	{
+		return NULL;
+	}
+
+	// printf("fan %d %d\n", fan_seg->hdr.beg_ang, fan_seg->hdr.ofset);
+
+	if (parser->fan_segs != NULL)
+	{
+		FanSegment_AA *seg = parser->fan_segs;
+
+		if ((seg->hdr.second != fan_seg->hdr.second)||(seg->hdr.nano_sec != fan_seg->hdr.nano_sec))
 		{
 			printf("drop old fan segments\n");
 			while (seg)
@@ -373,7 +567,7 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 		}
 
 		// remove segments
-		FanSegment *seg = parser->fan_segs;
+		FanSegment_AA *seg = parser->fan_segs;
 		while (seg)
 		{
 			parser->fan_segs = seg->next;
@@ -567,7 +761,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 
 	int unk = 0;
 	unsigned char unknown[1024];
-
+	printf("%s %d\n",__FUNCTION__,__LINE__);
 	while (idx < len - 128 && *nfan < max_fan)
 	{
 		unsigned char type = is_data(buf + idx);
@@ -715,6 +909,26 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 			}
 			idx += hdr.N * 5 + HDR7_SIZE + 2;
 		}
+		else if (type == 0xAA)
+		{
+			printf("%s %d\n",__FUNCTION__,__LINE__);
+			if (idx + hdr.N * 5 + HDRAA_SIZE + 2 > len)
+			{
+				// need more bytes
+				break;
+			}
+			RawDataHdrAA hdrAA;
+			memcpy(&hdrAA, buf + idx, HDRAA_SIZE);
+
+			RawData *fan = GetData0xAA(parser, hdrAA, buf + idx);
+			if (fan)
+			{
+				printf("%s %d\n",__FUNCTION__,__LINE__);
+				fans[*nfan] = fan;
+				*nfan += 1;
+			}
+			idx += hdr.N * 5 + HDRAA_SIZE + 2;
+		}
 		else if (type == 0xDF)
 		{
 			if (idx + hdr.N * 3 + HDR3_SIZE + 2 > len)
@@ -772,6 +986,7 @@ int ParserClose(HParser hP)
 
 int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 {
+	printf("%s %d\n",__FUNCTION__,__LINE__);
 	Parser *parser = (Parser *)hP;
 
 	int nfan = MAX_FANS;
@@ -1003,6 +1218,29 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 		if (fan)
 		{
 			// printf("set [%d] %d\n", *nfan, fan->angle);
+			fans[0] = fan;
+			return 1;
+		}
+		return 0;
+	}
+	else if (type == 0xAA)
+	{
+
+		
+		RawDataHdrAA hdr;
+		memcpy(&hdr, buf, HDRAA_SIZE);
+
+		if (hdr.N * 5 + HDRAA_SIZE + 2 > len)
+		{
+			// need more bytes
+			// printf("C7 len %d N %d\n", len, hdr.N);
+			return 0;
+		}
+		
+		RawData *fan = GetData0xAA(parser, hdr, buf);
+		if (fan)
+		{
+			//printf("set [%d] %d\n",fan->N, fan->angle);
 			fans[0] = fan;
 			return 1;
 		}
