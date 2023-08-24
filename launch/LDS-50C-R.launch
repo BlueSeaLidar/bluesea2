@@ -29,7 +29,7 @@
     #CONNECT#
     <param name="type" value="uart" />
     <param name="port" value="/dev/ttyUSB0" />
-    <param name="baud_rate" value="921600" /> ##
+    <param name="baud_rate" value="921600" /> 
     #GET#
     <param name="uuid" value="-1" />
     <param name="model" value="1"/>

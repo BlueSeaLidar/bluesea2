@@ -26,20 +26,16 @@ int change_baud(int fd, int baud)
 	}
 
 #if 1
-	int index = 5;
-	while (index--)
+	if (ioctl(fd, TCGETS2, &t) == 0)
 	{
-		if (ioctl(fd, TCGETS2, &t) == 0)
+		if (abs(t.c_ospeed - baud) <= 20000)
 		{
-			if(t.c_ospeed==baud)
-			{
-				printf("reported %d\n", t.c_ospeed);
-				break;
-			}
-			else
-			{
-				printf("reported err set:%d  result:%d\n",baud, t.c_ospeed);
-			}
+			printf("reported %d\n", t.c_ospeed);
+		}
+		else
+		{
+			printf("reported err set:%d  result:%d\n", baud, t.c_ospeed);
+			return -3;
 		}
 	}
 #endif

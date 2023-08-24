@@ -27,7 +27,7 @@
 HReader g_reader = NULL;
 std::string g_type = "uart";
 bool g_should_start = true;
-#define BLUESEA2_VERSION "1.2.0"
+#define BLUESEA2_VERSION "1.2.1"
 
 
 struct Range
