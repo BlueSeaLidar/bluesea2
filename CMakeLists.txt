@@ -142,7 +142,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp)
-add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/parser.cpp src/uart.c src/data_process.cpp src/algorithmAPI.cpp)
+add_executable(${PROJECT_NAME}_node src/bluesea_node.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/parser.cpp src/uart.c  src/algorithmAPI.cpp)
 add_executable(${PROJECT_NAME}_node_client src/bluesea_node_client.cpp)
 add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg  bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_node_client ${PROJECT_NAME}_gencfg bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})

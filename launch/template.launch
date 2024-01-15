@@ -22,10 +22,10 @@
     <rosparam param="mask1" >[-3.14,3.14]</rosparam>
     <!-- <rosparam param="mask2" >[-1,0]</rosparam> -->
     #CUSTOM#
-    <param name="error_circle" value="3"/>
-    <param name="error_scale" value="0.9"/>
-    <param name="group_listener" value="false" />
-    <param name="group_ip" value="224.0.0.11" />
+    <param name="error_circle" value="3"/>#判断距离为0的点的比重      连续三圈
+    <param name="error_scale" value="0.9"/>#每圈距离为0的点占据90%  则报错
+    <param name="group_listener" value="false" />#仅用于监听组播数据(需要上位机修改雷达的上传地址,并且固定上传，然后该驱动监听数据)
+    <param name="group_ip" value="224.0.0.11" />#监听的组播ip
     #FITTER#
     <param name="filter_open" value="true"/>#滤波生效开关
     <param name="max_range" value="20"/> #滤波生效的最大距离
@@ -40,12 +40,12 @@
     #GET#
     <param name="uuid" value="-1" />
     #SET#
-    <param name="rpm" value="-1"/>
-    <param name="resample_res" value="-1"/>
-    <param name="with_smooth" value="-1" />
-    <param name="with_deshadow" value="-1" />
-    <param name="alarm_msg" value="-1"/>
-    <param name="direction" value="-1"/>
+    <param name="rpm" value="-1"/> #-1  600 900  ...
+    <param name="resample_res" value="-1"/>#-1 0 1
+    <param name="with_smooth" value="-1" />#-1 0 1
+    <param name="with_deshadow" value="-1" />#-1 0 1
+    <param name="alarm_msg" value="-1"/>#-1 0 1
+    <param name="direction" value="-1"/>#-1 0 1
   </node>
  </group>
 </launch>
