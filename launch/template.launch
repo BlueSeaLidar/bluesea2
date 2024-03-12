@@ -20,6 +20,7 @@
     <param name="min_angle" value="-3.1415926"/>
     <param name="max_angle" value="3.1415926"/> 
     <rosparam param="mask1" >[-3.14,3.14]</rosparam>
+    <param name="time_mode" value="0"/>
     <!-- <rosparam param="mask2" >[-1,0]</rosparam> -->
     #CUSTOM#
     <param name="error_circle" value="3"/>#判断距离为0的点的比重      连续三圈

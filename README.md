@@ -1,129 +1,116 @@
-# bluesea
-ROS driver for Lanhai USB 2D LiDAR 
+# BLUESEA ROS driver #
 
-How to build Lanhai ros driver
-=====================================================================
-    1) Clone this project to your catkin's workspace src folder
-    2) Running catkin_make to build 
+## Overview ##
+----------
+BLUESEA ROS driver is specially designed to connect to the lidar products produced by our company. The driver can run on operating systems with ROS installed, and mainly supports ubuntu series operating systems (14.04LTS-20.04LTS). The hardware platforms that have been tested to run the ROS driver include: Intel x86 mainstream CPU platform, and some ARM64 hardware platforms (such as NVIDIA, Rockchip, Raspberry Pi, etc., which may need to update the cp210x driver).
 
-How to run Lanhai ros node (Serial Port Version)
-=====================================================================
-1) Copy UDEV rule file : sudo cp src/LHLiDAR.rules /etc/udev/rules.d/
-2) or Run : sudo chmod 666 /dev/ttyUSB0 # make usb serial port readable
+## Get and build the BLUESEA ROS driver package ##
+1.Get the BLUESEA ROS driver from Github and deploy the corresponding location
+
+    mkdir bluesea2   											//create a folder and customize it
+    cd bluesea2    												//into this folder
+    git clone https://github.com/BlueSeaLidar/bluesea2.git  src //download the driver package and rename it to src
+2.Build
+
+    catkin_make
+3.Update the current ROS package environment
+
+    source ./devel/setup.sh
 
 
-## if your lidar model is LDS-50C-2 :
-* rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=500000 _firmware_version:=2 _output_scan:=true _output_cloud:=true _with_resample:=true _resample_res:=0.5 _unit_is_mm:=true _with_confidence:=true
-* or use roslaunch src/bluesea/launch/LDS-50C-2.launch
+4.Using ROS launch to run drivers
+
+	sudo chmod 777 /dev/ttyUSB0 (uart)			//  /dev/ttyUSB0  refers to the serial port name. If it is a serial/virtual serial port model, it needs to be authorized
     
-## if your lidar model is LDS-15BDM or LDS-25BDM:
-* rosrun bluesea2 bluesea2_node _frame_id:=map _port:=/dev/ttyUSB0 _baud_rate:=230400 _firmware_version:=2 _output_scan:=true _output_cloud:=true _unit_is_mm:=false _with_confidence:=true _raw_bytes:=2
-* or use roslaunch src/bluesea2/launch/LDS-15BDM.launch    
+    roslaunch bluesea2 [launch file]    		//The specific launch file description is as follows
 
-3) optional : rostopic hz /scan
-4) optional : rosrun rviz rviz # 
+## Driver launch launch file  ##
+explain：[launch file] refers to the configuration files in the src/launch folder, distinguished by functional categories
 
-How to start/stop LiDAR detection 
-=====================================================================
-1) resume detection : rosservice call /your_node/start_motor
-2) stop detection : rosservice call /your_node/stop_motor
-
-How to run Lanhai ros node (UDP Network Version)
-=====================================================================
-1) sudo ifconfig eth0:1 192.168.158.200 # add sub net
-2) rosrun bluesea2 bluesea2_node _frame_id:=map _type:=udp _lidar_ip:=192.168.158.91 _firmware_version:=2
-3) optional : rostopic hz /scan
-4) optional : rosrun rviz rviz # 
-
-## if your lidar model is LDS-50C-E :
-* use roslaunch src/bluesea/launch/LDS-50C-E.launch
+- uart_lidar.launch:			lidar with serial port connection method
+- udp_lidar.launch:				lidar for UDP network communication
+- vpc_lidar.launch：				lidar with virtual serial port connection method
+- dual_udp_lidar.launch：		lidar with multiple UDP network communication(only one node)
+- template.launch：				All parameter definition templates
 
 
-Parameters
-=====================================================================
-* std::string type; // LiDAR comm type, could be "uart", or "udp"
-* std::string platform; // LiDAR hardware platform
-* std::string dump;	// file path of dump raw data, for debug
+Main parameter configuration instructions：
 
-// for serial port comm
-* std::string port; // serial port device path
-* int baud_rate; // baud rate, -1 : auto detect current baud rate
-
-// for network comm
-* std::string lidar_ip; // LiDAR's network address 
-* std::string group_ip; // multicast address
-* int lidar_port; // lidar's port (UDP)
-* int local_port; // ROS machine's port (UDP)
-
-// for intput data format
-* bool unit_is_mm; //  true : unit of raw data distance is CM, false: MM
-* bool with_confidence; // true: raw data with intensity, false: no intensity
-* bool with_checksum; // true : enable packet checksum
-
-// output data type
-* bool output_scan; // true: enable output angle+distance mode, false: disable
-* bool output_cloud; // true: enable output xyz format data, false : disable
-* bool output_360; // true: collect multiple RawData packets (360 degree), then publish
-				// false: publish every RawData (36 degree)
-* std::string frame_id;	// frame information, could be used for rviz
-* bool from_zero; // true : angle range [0 - 360), false: angle range [-180, 180)
-
-// is lidar inverted
-* bool inverted; // inverted installed
-* bool reversed; // data's angle increment
-
-// angle composate
-* bool with_resample; // resample angle resolution
-* double resample_res; // 0.5: resample angle resolution @ 0.5 degree 
-
-
-// output data format
-* int normal_size; // abnormal packet (points number < normal_size) will be droped
-
-// angle filter
-* bool with_angle_filter ; // true: enable angle filter, false: diable
-* double min_angle; // angle filter's low threshold, default value: -pi
-* double max_angle; // angle filters' up threashold, default value: pi
-
-* double max_dist;
-
-
-Dynamic Reconfigure Parameters
-=====================================================================
-int rpm; // motor's scaning RPM [300, 1500]
-
-command line like this:
-rosrun dynamic_reconfigure dynparam set /lidar1/lidar01 "{'rpm':700}"
+    #ROS# (mandatory parameter for the framework)
+    <param name="topic" value="scan" />#Publish topic
+    <param name="frame_id" value="map" />#Name of the flag coordinate system
+     #DATA# (driver-defined data level limiting parameter)
+    <param name="min_dist" value="0.01" />#Minimum point cloud distance (m)
+    <param name="max_dist" value="50.0"/>#Maximum point cloud distance (m)
+    <param name="from_zero" value="false"/>#Whether start angle is from 0 (false is 180).
+    <param name="output_scan" value="true" />#2D scan data (default)
+    <param name="output_cloud" value="false"/>#3D spatial data.
+    <param name="output_360" value="true" />#Output by frame.
+    <param name="reversed" value="false"/>#Reverse data.
+    <param name="hard_resample" value="false"/>#hard_resample_factor(if lidar support this command)
+    <param name="soft_resample" value="false"/>#Soft resample coefficient (need point cloud larger than the minimum number of points for soft resample)
+    <param name="with_angle_filter" value="false"/>#Angle filter switch.
+    <param name="min_angle" value="-3.1415926"/>#Minimum available angle.
+    <param name="max_angle" value="3.1415926"/#Maximum available angle.
+    <rosparam param="mask1" >[-3.14,3.14]</rosparam>#mask data for angle in this interval
+    <param name="time_mode" value="0"/>#Timestamp source of packet (default 0 system time, 1 is lidar time synchronized time)
+    <! -- <rosparam param="mask2" >[-1,0]</rosparam-->#Multiple segments to mask the angle of the interval, mask upwards +1
+    #CUSTOM# (driver customization function)
+    <param name="error_circle" value="3"/># Judge the weight of the point with distance 0 Three consecutive circles.
+    <param name="error_scale" value="0.9"/># 90% of points with distance 0 in each circle will report error.
+    <param name="group_listener" value="false" />#Only used to listen to multicast data (need to change the upload address of lidar by host computer, and fix the upload, then this driver will listen to the data).
+    <param name="group_ip" value="224.0.0.11" />#Listen to multicast ip.
+    #FITTER# (lidar different angular resolution parameters are different, need to be customized)
+    <param name="filter_open" value="true"/>#Filter enable switch.
+    <param name="max_range" value="20"/#Maximum range for filtering.
+    <param name="min_range" value="0.5"/>#Minimum range for filtering.
+    <param name="max_range_difference" value="0.1"/>#Physical range to judge the divergence.
+    <param name="filter_window" value="1"/>#Range of subscripts for judging outliers
+    #CONNECT# (parameter that drives the connection lidar)
+    <param name="type" value="udp" />
+    <param name="lidar_port" value="6543" />
+    <param name="local_port" value="6668" />
+    <param name="lidar_ip" value="192.168.158.98" />
+    #GET# (the query command switch that the driver sends to the lidar)
+    <param name="uuid" value="-1" /> #Query lidar SN number, -1 no query, >=0 query
+    #SET# (set command switch that driver sends to lidar)
+    <param name="rpm" value="-1"/#Set lidar rpm (different models of lidar can support different rpm, specific check the manual of the model):-1 not set 600 900 ... Setting
+    <param name="sample_res" value="-1"/>#set angular resolution (different lidar models can support different angular resolution, check the manual of the model),-1 not set 0 original data 1 angular correction
+    <param name="with_smooth" value="-1" />#Set de-smooth point, -1 not set 0 off 1 on.
+    <param name="with_deshadow" value="-1" />#Set filtering, -1 not set 0 off 1 on
+    <param name="alarm_msg" value="-1" />#set alarm message, -1 not set 0 off 1 on
+    <param name="direction" value="-1"/>#Set direction of rotation(only used by lidar which support this command),-1 not set 0 off 1 on
 
 
-How to control Lanhai ros node  start  and stop
-=====================================================================
-* client:      
- 			
-												   arg1  state    arg2:choose lidar serial number
+## Driver Client Functional Description ##
+source code locate at src/client.cpp
+start/stop rotate：
+    
+    rosrun bluesea2  bluesea2_client start  0  arg1 is (start/stop)  arg2 is lidar serial (Starting from 0, if it is a negative number, it means that all lidars are executed.)
 
-			start  or stop  one lidar
-			rosrun bluesea2  bluesea2_node_client  start/stop     0/1/2/... 
-			start or stop   all lidar
-			rosrun bluesea2  bluesea2_node_client  start/stop     -1      
+switch defense zones：
+	
+	rosrun bluesea2  bluesea2_client switchZone  0    192.168.158.98     arg1 is switchZone   arg2 is defense zones to be switched  arg3 is lidar ip
 
+set rpm：
 
+	rosrun bluesea2  bluesea2_client rpm  0 600   arg1 is rpm   arg2 is lidar serial(start from zero)  arg3 is rpm to be set
 
-	        rosrun bluesea2  bluesea2_node_client switchZone  1    192.168.0.110  //arg1: zone  arg2:ip
+## rosbag bag operating instructions ##
 
-* server:     
+	rostopic list 
+Get the topic list, the driver default topic name is /lidar1/scan
 
- 			roslaunch bluesea2  xxx.launch
+	rosbag record /lidar1/scan 
 
+Start recording data.
 
+The recorded file is named with a timestamp, to stop recording, CTRL+C in the current terminal 
 
-How to enable multiple radars and use only one port
-=====================================================================
-refer to  dual-LDS-50C-C30E.launch
-warming: The following parameters value is must different
+	rosbag play packet name
 
-	lidar_ip/lidar*_ip  
+Check the recorded packet in the path where the packet is stored, if it prompts failed connect master exception, then ros master first and then rosbag play.
 
-	lidar_port/lidar*_port
+## Business Support ##
 
-	topic/topic*   
+Please contact the technical support (https://pacecat.com/) through the official website for specific usage problems.
