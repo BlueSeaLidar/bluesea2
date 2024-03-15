@@ -9,7 +9,7 @@
 #include <time.h>
 #include "../sdk/include/bluesea.h"
 
-BlueSeaLidarDriver *m_driver=NULL;
+BlueSeaLidarDriver *m_driver = NULL;
 void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &frame_id, double min_dist, double max_dist, uint8_t inverted, uint8_t reversed)
 {
 	sensor_msgs::LaserScan msg;
@@ -17,6 +17,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 	msg.header.stamp.nsec = fan->ts[1];
 
 	msg.header.frame_id = frame_id;
+
 	int N = fan->N;
 	double scan_time = 1 / 100.;
 	msg.scan_time = scan_time;
@@ -58,7 +59,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 		for (int i = fan->N - 1; i >= 0; i--)
 		{
 			double deg = ROSAng(fan->points[i].degree);
-
+			
 			double d = fan->points[i].distance / 1000.0;
 
 			if (fan->points[i].distance == 0 || d > max_dist || d < min_dist)
@@ -92,6 +93,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 
 void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, uint8_t counterclockwise)
 {
+	//DEBUG("%d",argdata.inverted);
 	PubHub *hub = (PubHub *)pub;
 	sensor_msgs::LaserScan msg;
 	int N = hub->consume.size();
@@ -120,7 +122,6 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 		{
 			msg.angle_min = min_pos * M_PI / 180;
 			msg.angle_max = max_pos * M_PI / 180;
-			// DEBUG("data1:deg:%lf   %lf  angle:%lf   %lf   %d\n",min_deg,max_deg,msg.angle_min,msg.angle_max,N);
 		}
 		else
 		{
@@ -175,9 +176,16 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 
 	if (argdata.reversed)
 	{
-		for (int i = N - 1; i >= 0; i--)
+		for (int i = hub->consume.size() - 1; i >= 0; i--)
 		{
 			double deg = ROSAng(hub->consume[i].degree);
+			if (argdata.with_angle_filter)
+			{
+				if (deg < min_deg)
+					continue;
+				if (deg > max_deg)
+					continue;
+			}
 			double d = hub->consume[i].distance / 1000.0;
 			bool custom = false;
 			for (int k = 0; k < argdata.masks.size() && !custom; k++)
@@ -197,12 +205,17 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 	}
 	else
 	{
-
-		// ROS_INFO("%s %d %f %f\n", __FUNCTION__, __LINE__, hub->consume[0].degree,hub->consume[hub->consume.size()-1].degree);
-		for (int i = 0; i <= N - 1; i++)
+		for (int i = 0; i <= hub->consume.size() - 1; i++)
 		{
-			// DEBUG(" %d %d  %d  %lf \n", datapoint[i].distance,datapoint[i].confidence,N,datapoint[i].degree);
 			double deg = ROSAng(hub->consume[i].degree);
+			if (argdata.with_angle_filter)
+			{
+				//DEBUG("%lf %lf %lf %lf",hub->consume[i].degree,deg,min_deg,max_deg);
+				if (deg < min_deg)
+					continue;
+				if (deg > max_deg)
+					continue;
+			}
 			double d = hub->consume[i].distance / 1000.0;
 			bool custom = false;
 			for (int k = 0; k < argdata.masks.size() && !custom; k++)
@@ -308,11 +321,10 @@ bool rpm_motor(bluesea2::DefenceZone::Request &req, bluesea2::DefenceZone::Respo
 
 	char cmd[12] = {0};
 	sprintf(cmd, "LSRPM:%sH", req.ip.c_str());
-	ROS_INFO("RPM motor  cmd:%s\n:",cmd);
+	ROS_INFO("RPM motor  cmd:%s\n:", cmd);
 	int index = req.index;
 	return m_driver->sendCmd(strlen(cmd), cmd, req.index);
 }
-
 
 bool get_range_param(ros::NodeHandle nh, const char *name, Range &range)
 {
@@ -397,7 +409,7 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 	priv_nh.param("raw_bytes", argdata.raw_bytes, 3); // packet mode : 2bytes or 3bytes
 													  // is lidar inverted
 	bool inverted, reversed;
-	// priv_nh.param("inverted", argdata.inverted, false);
+	priv_nh.param("inverted", argdata.inverted, false);
 	priv_nh.param("reversed", argdata.reversed, false);
 	// data output
 	priv_nh.param("output_scan", argdata.output_scan, true);	// true: enable output angle+distance mode, 0: disable
@@ -472,14 +484,13 @@ int main(int argc, char **argv)
 	ros::NodeHandle priv_nh("~");
 
 	ROS_INFO("ROS VERSION:%s\n", BLUESEA2_VERSION);
-	//init launch arg   
+	// init launch arg
 	ArgData argdata;
 	ProfileInit(priv_nh, argdata);
-	
 	m_driver = new BlueSeaLidarDriver();
 	m_driver->getInitCmds(argdata);
 	m_driver->openLidarThread();
-	//create topic
+	// create topic
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
 	for (int i = 0; i < argdata.num; i++)
 	{
@@ -493,7 +504,7 @@ int main(int argc, char **argv)
 			laser_pubs[i] = node_handle.advertise<sensor_msgs::LaserScan>(argdata.connectargs[i].laser_topics, 50);
 		}
 	}
-	//interacting with the client
+	// interacting with the client
 	ros::ServiceServer stop_srv = node_handle.advertiseService("stop_motor", stop_motor);
 	ros::ServiceServer start_srv = node_handle.advertiseService("start_motor", start_motor);
 	ros::ServiceServer switchZone_srv = node_handle.advertiseService("switchZone_motor", switchZone_motor);
@@ -508,7 +519,6 @@ int main(int argc, char **argv)
 			PubHub *hub = m_driver->getHub(i);
 			if (hub->nfan == 0)
 				continue;
-			argdata.inverted=hub->inverted;
 			bool ret = false;
 			if (hub->offsetangle == -1)
 			{

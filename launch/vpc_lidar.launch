@@ -5,14 +5,13 @@
     <param name="topic" value="scan"/>
     <param name="frame_id" value="map" />
      #DATA#
-    <param name="raw_bytes" value="3"/>
     <param name="min_dist" value="0.1"/>
     <param name="max_dist" value="50.0"/>
     <param name="from_zero" value="false"/>
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="false"/>
     <param name="output_360" value="true" />
-    <!-- <param name="inverted" value="false"/> -->
+    <param name="inverted" value="false"/>
     <param name="reversed" value="false"/>
     <param name="hard_resample" value="false"/>
     <param name="soft_resample" value="false"/>

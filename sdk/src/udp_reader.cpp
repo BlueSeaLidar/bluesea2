@@ -162,16 +162,6 @@ void *UdpThreadProc(void *p)
 			setup_lidar_udp(info->fd_udp,info->lidars[i].hParser,param);
 			std::string model = stringfilter((char*)param.dev_type, 16);
 			DEBUG("%s",model.c_str());
-			if(model=="LDS-50C-C30E-R")
-			{
-				info->lidars[i].hPublish->inverted=true;
-				DEBUG("lidar data direction 1 OK");
-			}
-			if(model=="LDS-E400-E"||model=="LDS-E340-E"||model=="LDS-E340-S"||model=="LDS-E330-S"||model=="LDS-E300-E")
-			{
-				info->lidars[i].hPublish->inverted=param.motor_ccw;
-				DEBUG("lidar data direction :%d OK",param.motor_ccw);
-			}
 		}
 	}
 	while (1)

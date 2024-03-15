@@ -167,7 +167,7 @@ int GetCount(std::vector<DataPoint> data, double min_deg, double max_deg, double
 		N++;
 	}
 
-	// DEBUG("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, cnt, N, min_pos, max_pos);
+	//printf("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, 1, N, min_pos, max_pos);
 	return N;
 }
 void resample(RawData *dat, int NN)

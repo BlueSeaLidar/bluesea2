@@ -46,7 +46,8 @@
     <param name="output_scan" value="true" />#二维扫描数据(默认)
     <param name="output_cloud" value="false"/>#三维空间数据
     <param name="output_360" value="true" />#按帧输出
-    <param name="reversed" value="false"/>#数据倒转
+	<param name="inverted" value="false"/>#发布数据角度参数反置(angle_min，angle_max,angle_increment)
+    <param name="reversed" value="false"/>#发布数据点云数据倒转(从最后一个点排到第一个点)
     <param name="hard_resample" value="false"/>#硬采样系数(前提需要雷达支持该指令)
     <param name="soft_resample" value="false"/>#软采样系数(前提需要点云大于软采样的最小点数)
     <param name="with_angle_filter" value="false"/>#角度过滤开关

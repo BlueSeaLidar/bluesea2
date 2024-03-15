@@ -46,7 +46,8 @@ Main parameter configuration instructions：
     <param name="output_scan" value="true" />#2D scan data (default)
     <param name="output_cloud" value="false"/>#3D spatial data.
     <param name="output_360" value="true" />#Output by frame.
-    <param name="reversed" value="false"/>#Reverse data.
+    <param name="inverted" value="false"/>#Publish data angle parameter inverted(angle_min,angle_max,angle_increment).
+    <param name="reversed" value="false"/>#Publish data point cloud data reversed (row from last point to first point)
     <param name="hard_resample" value="false"/>#hard_resample_factor(if lidar support this command)
     <param name="soft_resample" value="false"/>#Soft resample coefficient (need point cloud larger than the minimum number of points for soft resample)
     <param name="with_angle_filter" value="false"/>#Angle filter switch.

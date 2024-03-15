@@ -265,7 +265,8 @@ static RawData *PackFanData(FanSegment_C7 *seg)
 	dat->first = 0;
 	dat->last = 0;
 	dat->fend = 0;
-	dat->counterclockwise = 0;
+	dat->counterclockwise = (seg->hdr.flags & DF_MOTOR_REVERSE) ? 1 : 0;
+
 	if (!g_timemode)
 		SetTimeStamp(dat);
 	else
@@ -303,7 +304,7 @@ static RawData *PackFanData(FanSegment_AA *seg)
 	dat->first = 0;
 	dat->last = 0;
 	dat->fend = 0;
-	dat->counterclockwise = 0;
+	dat->counterclockwise = (seg->hdr.flags & DF_MOTOR_REVERSE) ? 1 : 0;
 
 	if (!g_timemode)
 		SetTimeStamp(dat);

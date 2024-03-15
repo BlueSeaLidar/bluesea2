@@ -278,8 +278,6 @@ struct PubHub
 	std::vector<DataPoint>consume;//统计完剩余的点数
 	uint32_t ts_beg[2];
 	uint32_t ts_end[2];
-
-	bool inverted;
 };
 
 struct LidarNode
