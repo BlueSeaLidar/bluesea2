@@ -28,37 +28,17 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 	double min_pos, max_pos;
 	msg.intensities.resize(N); // fan->N);
 	msg.ranges.resize(N);	   // fan->N);
-	if (inverted)
-	{
-		min_pos = ROSAng(-fan->angle / 10) * 10 * M_PI / 1800;
-		max_pos = -min_pos; // + fan->span * M_PI / 1800;
-	}
-	else
-	{
-		min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
-		max_pos = min_pos; //-fan->span  * M_PI / 1800;
-	}
-	msg.intensities.resize(N); // fan->N);
-	msg.ranges.resize(N);	   // fan->N);
 
-	if (inverted)
-	{
-		msg.angle_min = min_pos;
-		msg.angle_max = max_pos;
-		msg.angle_increment = (fan->span * M_PI / 1800) / fan->N;
-	}
-	else
-	{
-		msg.angle_min = max_pos;
-		msg.angle_max = min_pos;
-		msg.angle_increment = -(fan->span * M_PI / 1800) / fan->N;
-	}
+	msg.angle_min = m_driver->ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
+	msg.angle_max = -msg.angle_min;
+	msg.angle_increment = (fan->span * M_PI / 1800) / fan->N;
+
 	N = 0;
 	if (reversed)
 	{
 		for (int i = fan->N - 1; i >= 0; i--)
 		{
-			double deg = ROSAng(fan->points[i].degree);
+			double deg = m_driver->ROSAng(fan->points[i].degree);
 			
 			double d = fan->points[i].distance / 1000.0;
 
@@ -75,7 +55,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 	{
 		for (int i = 0; i < fan->N; i++)
 		{
-			double deg = ROSAng(fan->points[i].degree);
+			double deg = m_driver->ROSAng(fan->points[i].degree);
 			// customize angle filter
 			double d = fan->points[i].distance / 1000.0;
 
@@ -91,7 +71,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 	laser_pub.publish(msg);
 }
 
-void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, uint8_t counterclockwise)
+void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, int8_t counterclockwise)
 {
 	//DEBUG("%d",argdata.inverted);
 	PubHub *hub = (PubHub *)pub;
@@ -117,22 +97,14 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 	if (argdata.with_angle_filter)
 	{
 		double min_pos, max_pos;
-		N = GetCount(hub->consume, min_deg, max_deg, min_pos, max_pos);
-		if (argdata.inverted)
-		{
-			msg.angle_min = min_pos * M_PI / 180;
-			msg.angle_max = max_pos * M_PI / 180;
-		}
-		else
-		{
-			msg.angle_min = max_pos * M_PI / 180;
-			msg.angle_max = min_pos * M_PI / 180;
-		}
+		N = m_driver->GetCount(hub->consume, min_deg, max_deg, min_pos, max_pos);
+		msg.angle_min = min_pos * M_PI / 180;
+		msg.angle_max = max_pos * M_PI / 180;
 		msg.angle_increment = (msg.angle_max - msg.angle_min) / (N - 1);
 	}
-	else if (argdata.from_zero)
+	else
 	{
-		if (argdata.inverted)
+		if (argdata.from_zero)
 		{
 			msg.angle_min = 0;
 			msg.angle_max = 2 * M_PI * (N - 1) / N;
@@ -140,45 +112,20 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 		}
 		else
 		{
-			msg.angle_min = 2 * M_PI * (N - 1) / N;
-			msg.angle_max = 0;
-			msg.angle_increment = -M_PI * 2 / N;
-		}
-	}
-	else
-	{
-		if (argdata.inverted)
-		{
 			msg.angle_min = -M_PI;
 			msg.angle_max = M_PI - (2 * M_PI) / N;
 			msg.angle_increment = M_PI * 2 / N;
 		}
-		else
-		{
-			msg.angle_min = M_PI;
-			msg.angle_max = -M_PI + (2 * M_PI) / N;
-			msg.angle_increment = -M_PI * 2 / N;
-		}
-	}
-
-	if (counterclockwise != 0)
-	{
-		double d = msg.angle_min;
-		msg.angle_min = msg.angle_max;
-		msg.angle_max = d;
-		msg.angle_increment = -msg.angle_increment;
-		msg.angle_min -= msg.angle_increment;
-		msg.angle_max -= msg.angle_increment;
 	}
 	msg.intensities.resize(N);
 	msg.ranges.resize(N);
 	int idx = 0;
 
-	if (argdata.reversed)
+	if (argdata.reversed+ counterclockwise != 1)
 	{
 		for (int i = hub->consume.size() - 1; i >= 0; i--)
 		{
-			double deg = ROSAng(hub->consume[i].degree);
+			double deg = m_driver->ROSAng(hub->consume[i].degree);
 			if (argdata.with_angle_filter)
 			{
 				if (deg < min_deg)
@@ -207,7 +154,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 	{
 		for (int i = 0; i <= hub->consume.size() - 1; i++)
 		{
-			double deg = ROSAng(hub->consume[i].degree);
+			double deg = m_driver->ROSAng(hub->consume[i].degree);
 			if (argdata.with_angle_filter)
 			{
 				//DEBUG("%lf %lf %lf %lf",hub->consume[i].degree,deg,min_deg,max_deg);
@@ -264,9 +211,9 @@ void PublishCloud(ros::Publisher &cloud_pub, HPublish pub, ArgData argdata)
 	{
 		if (argdata.with_angle_filter)
 		{
-			if (ROSAng(hub->consume[i].degree) < min_deg)
+			if (m_driver->ROSAng(hub->consume[i].degree) < min_deg)
 				continue;
-			if (ROSAng(hub->consume[i].degree) > max_deg)
+			if (m_driver->ROSAng(hub->consume[i].degree) > max_deg)
 				continue;
 		}
 
@@ -479,11 +426,13 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 
 int main(int argc, char **argv)
 {
+	ROS_INFO("ROS VERSION:%s\n", BLUESEA2_VERSION);
+	
 	ros::init(argc, argv, "bluesea2_laser_publisher");
 	ros::NodeHandle node_handle;
 	ros::NodeHandle priv_nh("~");
 
-	ROS_INFO("ROS VERSION:%s\n", BLUESEA2_VERSION);
+	
 	// init launch arg
 	ArgData argdata;
 	ProfileInit(priv_nh, argdata);
@@ -542,7 +491,7 @@ int main(int argc, char **argv)
 			else
 			{
 				// 按照点数判定一帧的数据，然后   零数判定， 离异点过滤，最大最小值过滤(空点去除)， 指定角度屏蔽(mask置零)
-				uint8_t counterclockwise = false;
+				int8_t counterclockwise = false;
 				int n = m_driver->GetAllFans(hub, argdata, counterclockwise);
 				if (n > 0)
 				{

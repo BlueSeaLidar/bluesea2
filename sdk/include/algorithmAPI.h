@@ -10,10 +10,6 @@ bool filter(std::vector<DataPoint>& output_scan,int type,double max_range,double
 bool checkZeroDistance(std::vector<DataPoint>comsume,float error_scale);
 //CRC算法
 unsigned int stm32crc(unsigned int *ptr, unsigned int len);
-
-double ROSAng(double ang);
-//获取指定角度范围内的点数以及点排序
-int GetCount(std::vector<DataPoint> data, double min_deg, double max_deg, double &min_pos, double &max_pos);
 //软采样设置
 void resample(RawData *dat, int NN);
 #endif

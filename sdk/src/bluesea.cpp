@@ -158,7 +158,7 @@ bool BlueSeaLidarDriver::checkIsRun(int index)
 	return false;
 }
 
-int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, uint8_t &counterclockwise)
+int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counterclockwise)
 {
 	PubHub *hub = (PubHub *)pub;
 	RawData *fans[MAX_FANS];
@@ -168,9 +168,9 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, uint8_t &counte
 	int cnt = 0, nfan = 0;
 	for (int i = 1; i < hub->nfan; i++)
 	{
+		//DEBUG("%d %d",hub->fans[i]->angle,hub->offsetangle);
 		if (hub->fans[i]->angle == hub->offsetangle)
 		{
-
 			hub->ts_end[0] = hub->fans[i]->ts[0];
 			hub->ts_end[1] = hub->fans[i]->ts[1];
 			cnt = i;
@@ -209,7 +209,14 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, uint8_t &counte
 	if (cnt > 0)
 	{
 		counterclockwise = fans[0]->counterclockwise;
-
+		//如果是-1，则根据类型来区分，串口款都是逆时针，网络和虚拟串口默认为顺时针
+		if(counterclockwise==-1)
+		{
+			if (argdata.type == "vpc" || argdata.type == "udp")
+				counterclockwise=0;
+			else if (argdata.type == "uart")
+				counterclockwise=1;
+		}
 		bool circle = true;
 		int total = fans[0]->span;
 		hub->ts_beg[0] = fans[0]->ts[0];
@@ -311,6 +318,9 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, uint8_t &counte
 		Fitter *fitter = &argdata.fitter;
 		if (fitter->isopen)
 			filter(hub->consume, fitter->type, fitter->max_range*1000, fitter->min_range*1000, fitter->max_range_difference*1000, fitter->filter_window, angle_increment);
+	
+		m_counterclockwise=counterclockwise;
+		//DEBUG("%d",m_counterclockwise);
 	}
 	return cnt;
 }
@@ -347,4 +357,44 @@ bool BlueSeaLidarDriver::GetFan(PubHub* pub, bool with_resample, double resample
 		}
 	}
 	return got;
+}
+double BlueSeaLidarDriver::ROSAng(double ang)
+{
+	if(m_counterclockwise+m_argdata.reversed!=1)
+	{
+		return ang>180 ? 360-ang : -ang;
+	}
+	else
+	{
+		return ang>180 ? ang-360 :ang;
+	}
+}
+
+int BlueSeaLidarDriver::GetCount(std::vector<DataPoint> data, double min_deg, double max_deg, double &min_pos, double &max_pos)
+{
+	int N = 0;
+
+	for (int i = 0; i < data.size(); i++)
+	{
+		double deg = ROSAng(data[i].degree);
+
+		if (deg < min_deg || deg > max_deg)
+			continue;
+		if (N == 0)
+		{
+			min_pos = deg;
+			max_pos = deg;
+		}
+		else
+		{
+			if (min_pos > deg)
+				min_pos = deg;
+			if (max_pos < deg)
+				max_pos = deg;
+		}
+		N++;
+	}
+
+	//printf("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, 1, N, min_pos, max_pos);
+	return N;
 }

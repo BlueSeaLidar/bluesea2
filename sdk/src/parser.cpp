@@ -87,7 +87,6 @@ static RawData *GetData0xCE_2(const RawDataHdr &hdr, unsigned char *buf, uint32_
 		return NULL;
 	}
 	SetTimeStamp(dat);
-
 	return dat;
 }
 
@@ -138,7 +137,6 @@ static RawData *GetData0xCE_3(const RawDataHdr &hdr, unsigned char *buf, uint32_
 	// printf("get3 %d(%d)\n", hdr.angle, hdr.N);
 
 	SetTimeStamp(dat);
-	// dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
 	return dat;
 }
 
@@ -454,7 +452,6 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 
 		return dat;
 	}
-
 	return NULL;
 }
 
@@ -650,7 +647,7 @@ static RawData *GetData0xCF(const RawDataHdr2 &hdr, unsigned char *pdat, bool wi
 	// printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
 
 	SetTimeStamp(dat);
-	// dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	dat->counterclockwise =-1;
 	return dat;
 }
 
@@ -705,7 +702,7 @@ static RawData *GetData0xDF(const RawDataHdr3 &hdr, unsigned char *pdat, bool wi
 	// printf("get DF %d=%d %d %d\n", hdr.angle, hdr.first, hdr.N, hdr.span);
 
 	SetTimeStamp(dat);
-	// dat->ros_angle = LidarAng2ROS(dat->angle + dat->span);
+	dat->counterclockwise =-1;
 	return dat;
 }
 
@@ -840,6 +837,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 					fans[*nfan] = fan;
 					*nfan += 1;
 					idx += HDR_SIZE + hdr.N * 3 + 2;
+					fan->counterclockwise =-1;
 				}
 				else
 				{
@@ -852,6 +850,8 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 							*nfan += 1;
 							raw_mode = 2;
 							idx += HDR_SIZE + hdr.N * 2 + 2;
+							fan->counterclockwise =1;
+
 						}
 						else
 							idx += HDR_SIZE + hdr.N * 3 + 2;
@@ -870,6 +870,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 					*nfan += 1;
 					idx += HDR_SIZE + hdr.N * 2 + 2;
 					raw_mode=2;
+					fan->counterclockwise =1;
 				}
 				else
 				{
@@ -881,6 +882,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 							fans[*nfan] = fan;
 							*nfan += 1;
 							idx += HDR_SIZE + hdr.N * 3 + 2;
+							fan->counterclockwise =-1;
 						}
 						else 
 							idx += HDR_SIZE + hdr.N * 2 + 2;

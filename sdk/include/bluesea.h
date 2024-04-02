@@ -22,9 +22,11 @@ public:
     PubHub*getHub(int i);
     Parser*getParser(int i);
     bool checkIsRun(int i);
-    int GetAllFans(PubHub* pub, ArgData argdata, uint8_t &counterclockwise);
+    int GetAllFans(PubHub* pub, ArgData argdata, int8_t &counterclockwise);
     bool GetFan(PubHub* pub, bool with_resample, double resample_res, RawData **fans);
     
+    double ROSAng(double ang);
+    int GetCount(std::vector<DataPoint> data, double min_deg, double max_deg, double &min_pos, double &max_pos);
 private:
 
 private:
@@ -35,4 +37,5 @@ private:
     Parser *m_parsers[MAX_LIDARS];
 	PubHub *m_hubs[MAX_LIDARS];
     ArgData m_argdata;
+    int m_counterclockwise{false};
 };

@@ -135,41 +135,7 @@ unsigned int stm32crc(unsigned int *ptr, unsigned int len)
 	return crc32;
 }
 
-double ROSAng(double ang)
-{
-	ang = -ang;
-	return ang < -180 ? ang + 360 : ang;
-	// return ang < 180 ? ang : ang - 360;
-}
 
-int GetCount(std::vector<DataPoint> data, double min_deg, double max_deg, double &min_pos, double &max_pos)
-{
-	int N = 0;
-
-	for (int i = 0; i < data.size(); i++)
-	{
-		double deg = ROSAng(data[i].degree);
-
-		if (deg < min_deg || deg > max_deg)
-			continue;
-		if (N == 0)
-		{
-			min_pos = deg;
-			max_pos = deg;
-		}
-		else
-		{
-			if (min_pos > deg)
-				min_pos = deg;
-			if (max_pos < deg)
-				max_pos = deg;
-		}
-		N++;
-	}
-
-	//printf("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, 1, N, min_pos, max_pos);
-	return N;
-}
 void resample(RawData *dat, int NN)
 {
 	int *index = new int[NN];

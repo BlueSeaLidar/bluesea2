@@ -68,7 +68,7 @@ struct RawData
 	// short ros_angle;	// 0.1 degree
 	DataPoint points[MAX_POINTS];
 	uint32_t ts[2];
-	uint8_t counterclockwise;
+	int8_t counterclockwise;
 	uint32_t flags;	//消息类型
 };
 struct AllPointData
