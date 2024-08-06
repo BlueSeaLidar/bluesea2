@@ -2,7 +2,8 @@
  <group ns="lidar1">
   <node name="lidar01" pkg="bluesea2" type="bluesea2_node" output="screen" >
     #ROS#
-    <param name="topic" value="scan"/>
+    <param name="scan_topic" value="scan"/>
+    <param name="cloud_topic" value="cloud"/>
     <param name="frame_id" value="map" />
      #DATA#
     <param name="min_dist" value="0.01"/>
@@ -10,6 +11,7 @@
     <param name="from_zero" value="false"/>
     <param name="output_scan" value="true" />
     <param name="output_cloud" value="false"/>
+    <param name="output_cloud2" value="false"/>
     <param name="output_360" value="true" />
     <param name="inverted" value="false"/>
     <param name="reversed" value="false"/>

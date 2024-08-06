@@ -1,0 +1,4 @@
+<launch>
+  <node name="bluesea2_heart_check" pkg="bluesea2" type="bluesea2_heart_check" output="screen">
+  </node>
+</launch>

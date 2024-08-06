@@ -1,10 +1,10 @@
-# BLUESEA ROS driver #
+# BLUESEA ROS driver
 
-## Overview ##
+## Overview
 ----------
 BLUESEA ROS driver is specially designed to connect to the lidar products produced by our company. The driver can run on operating systems with ROS installed, and mainly supports ubuntu series operating systems (14.04LTS-20.04LTS). The hardware platforms that have been tested to run the ROS driver include: Intel x86 mainstream CPU platform, and some ARM64 hardware platforms (such as NVIDIA, Rockchip, Raspberry Pi, etc., which may need to update the cp210x driver).
 
-## Get and build the BLUESEA ROS driver package ##
+## Get and build the BLUESEA ROS driver package
 1.Get the BLUESEA ROS driver from Github and deploy the corresponding location
 
     mkdir bluesea2   											//create a folder and customize it
@@ -24,15 +24,17 @@ BLUESEA ROS driver is specially designed to connect to the lidar products produc
     
     roslaunch bluesea2 [launch file]    		//The specific launch file description is as follows
 
-## Driver launch launch file  ##
+## Driver launch launch file
 explain：[launch file] refers to the configuration files in the src/launch folder, distinguished by functional categories
 
-- uart_lidar.launch:			lidar with serial port connection method
-- udp_lidar.launch:				lidar for UDP network communication
-- vpc_lidar.launch：				lidar with virtual serial port connection method
-- dual_udp_lidar.launch：		lidar with multiple UDP network communication(only one node)
-- template.launch：				All parameter definition templates
-
+- uart_lidar.launch:lidar with serial port connection method
+- udp_lidar.launch:lidar for UDP network communication
+- vpc_lidar.launch：lidar with virtual serial port connection method
+- dual_udp_lidar.launch：lidar with multiple UDP network communication(only one node)
+- template.launch：All parameter definition templates
+- heart_check.launch:lidar uptime detection print
+- LDS-U50C-S(only).launch:Older lidars, data communication only
+- LDS-U80C-S(only).launch:Older lidars, data communication only
 
 Main parameter configuration instructions：
 
@@ -83,21 +85,29 @@ Main parameter configuration instructions：
     <param name="direction" value="-1"/>#Set direction of rotation(only used by lidar which support this command),-1 not set 0 off 1 on
 
 
-## Driver Client Functional Description ##
+## Driver Client Functional Description
 source code locate at src/client.cpp
 start/stop rotate：
     
-    rosrun bluesea2  bluesea2_client start  0  arg1 is (start/stop)  arg2 is lidar serial (Starting from 0, if it is a negative number, it means that all lidars are executed.)
-
+    rosrun bluesea2  bluesea2_client scan start      
+    arg1 is topic   arg2 is action(start/stop)
+    
 switch defense zones：
 	
-	rosrun bluesea2  bluesea2_client switchZone  0    192.168.158.98     arg1 is switchZone   arg2 is defense zones to be switched  arg3 is lidar ip
+	rosrun bluesea2  bluesea2_client scan switchZone  0     
+    arg1 is topic   arg2 is action(switchZone)  arg3 is select zone id
 
 set rpm：
 
-	rosrun bluesea2  bluesea2_client rpm  0 600   arg1 is rpm   arg2 is lidar serial(start from zero)  arg3 is rpm to be set
+	rosrun bluesea2  bluesea2_client scan rpm  600 
+    arg1 is topic   arg2 is action(set rpm)  arg3 is rpm value
 
-## rosbag bag operating instructions ##
+set heart check:
+
+    rosrun bluesea2  bluesea2_client heart check  1
+    arg1 is service name   arg2 is action(check)  arg3 is print / not print
+
+## rosbag bag operating instructions
 
 	rostopic list 
 Get the topic list, the driver default topic name is /lidar1/scan
@@ -112,6 +122,6 @@ The recorded file is named with a timestamp, to stop recording, CTRL+C in the cu
 
 Check the recorded packet in the path where the packet is stored, if it prompts failed connect master exception, then ros master first and then rosbag play.
 
-## Business Support ##
+## Business Support
 
 Please contact the technical support (https://pacecat.com/) through the official website for specific usage problems.

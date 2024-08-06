@@ -1,10 +1,11 @@
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
-#include <std_msgs/UInt16.h>
-#include <std_srvs/Empty.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud_conversion.h>
+
 #include <bluesea2/Control.h>
-#include <bluesea2/DefenceZone.h>
+#include <std_srvs/Empty.h>
 #include <ros/console.h>
 #include <time.h>
 #include "../sdk/include/bluesea.h"
@@ -39,7 +40,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 		for (int i = fan->N - 1; i >= 0; i--)
 		{
 			double deg = m_driver->ROSAng(fan->points[i].degree);
-			
+
 			double d = fan->points[i].distance / 1000.0;
 
 			if (fan->points[i].distance == 0 || d > max_dist || d < min_dist)
@@ -73,7 +74,7 @@ void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &f
 
 void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, int8_t counterclockwise)
 {
-	//DEBUG("%d",argdata.inverted);
+	// DEBUG("%d",argdata.inverted);
 	PubHub *hub = (PubHub *)pub;
 	sensor_msgs::LaserScan msg;
 	int N = hub->consume.size();
@@ -120,8 +121,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 	msg.intensities.resize(N);
 	msg.ranges.resize(N);
 	int idx = 0;
-
-	if (argdata.reversed+ counterclockwise != 1)
+	if (argdata.reversed + counterclockwise != 1)
 	{
 		for (int i = hub->consume.size() - 1; i >= 0; i--)
 		{
@@ -134,6 +134,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 					continue;
 			}
 			double d = hub->consume[i].distance / 1000.0;
+
 			bool custom = false;
 			for (int k = 0; k < argdata.masks.size() && !custom; k++)
 			{
@@ -157,7 +158,7 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 			double deg = m_driver->ROSAng(hub->consume[i].degree);
 			if (argdata.with_angle_filter)
 			{
-				//DEBUG("%lf %lf %lf %lf",hub->consume[i].degree,deg,min_deg,max_deg);
+				// DEBUG("%lf %lf %lf %lf",hub->consume[i].degree,deg,min_deg,max_deg);
 				if (deg < min_deg)
 					continue;
 				if (deg > max_deg)
@@ -181,96 +182,177 @@ void PublishLaserScan(ros::Publisher &laser_pub, HPublish pub, ArgData argdata, 
 			idx++;
 		}
 	}
-	hub->consume.clear();
+	// hub->consume.clear();
 	laser_pub.publish(msg);
 }
 
-void PublishCloud(ros::Publisher &cloud_pub, HPublish pub, ArgData argdata)
+void PublishCloud(ros::Publisher &cloud_pub, HPublish pub, ArgData argdata, int8_t counterclockwise)
 {
 	PubHub *hub = (PubHub *)pub;
-	sensor_msgs::PointCloud cloud;
-	// cloud.header.stamp = ros::Time::now();
-
-	cloud.header.stamp.sec = hub->ts_beg[0];
-	cloud.header.stamp.nsec = hub->ts_beg[1];
-
-	cloud.header.frame_id = argdata.frame_id;
-
+	sensor_msgs::PointCloud msg;
 	int N = hub->consume.size();
+	// make  min_ang max_ang  convert to mask
+	msg.header.stamp.sec = hub->ts_beg[0];
+	msg.header.stamp.nsec = hub->ts_beg[1];
 
-	cloud.points.resize(N);
-	cloud.channels.resize(1);
-	cloud.channels[0].name = "intensities";
-	cloud.channels[0].values.resize(N);
+	msg.header.frame_id = argdata.frame_id;
 
 	double min_deg = argdata.min_angle * 180 / M_PI;
 	double max_deg = argdata.max_angle * 180 / M_PI;
-
-	int idx = 0;
-	for (int i = 0; i < hub->consume.size(); i++)
+	if (argdata.with_angle_filter)
 	{
-		if (argdata.with_angle_filter)
-		{
-			if (m_driver->ROSAng(hub->consume[i].degree) < min_deg)
-				continue;
-			if (m_driver->ROSAng(hub->consume[i].degree) > max_deg)
-				continue;
-		}
-
-		float r = hub->consume[i].distance / 1000.0;
-		// float a = j*M_PI/5 + i*M_PI/5/dat360[j].N;
-		float a = -hub->consume[i].degree * M_PI / 180;
-
-		cloud.points[idx].x = cos(a) * r;
-		cloud.points[idx].y = sin(a) * r;
-		cloud.points[idx].z = 0;
-		cloud.channels[0].values[idx] = hub->consume[i].confidence;
-		idx++;
+		double min_pos, max_pos;
+		N = m_driver->GetCount(hub->consume, min_deg, max_deg, min_pos, max_pos);
 	}
-	cloud_pub.publish(cloud);
-}
+	msg.points.resize(N);
+	msg.channels.resize(1);
 
-// service call back function
-bool stop_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &res)
-{
-	ROS_INFO("Stop motor  index:%ld", req.index);
-	char cmd[] = "LSTOPH";
-	return m_driver->sendCmd(6, cmd, req.index);
-}
-
-// service call back function
-bool start_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &res)
-{
-	ROS_INFO("Start motor  index:%ld", req.index);
-	char cmd[] = "LSTARH";
-	return m_driver->sendCmd(6, cmd, req.index);
-}
-bool switchZone_motor(bluesea2::DefenceZone::Request &req, bluesea2::DefenceZone::Response &res)
-{
-
-	char cmd[12] = {0};
-	sprintf(cmd, "LSAZN:%xH", req.index);
-	ROS_INFO("DefenceZone motor  cmd:%s,ip:%s", cmd, req.ip.c_str());
-	int index = req.index;
-	if (index < 0)
+	msg.channels[0].name = "intensities";
+	msg.channels[0].values.resize(N);
+	int idx = 0;
+	if (argdata.reversed + counterclockwise != 1)
 	{
-		return false;
+		for (int i = hub->consume.size() - 1; i >= 0; i--)
+		{
+			double deg = m_driver->ROSAng(hub->consume[i].degree);
+			if (argdata.with_angle_filter)
+			{
+				if (deg < min_deg)
+					continue;
+				if (deg > max_deg)
+					continue;
+			}
+			double d = hub->consume[i].distance / 1000.0;
+			bool custom = false;
+			for (int k = 0; k < argdata.masks.size() && !custom; k++)
+			{
+				if (argdata.with_angle_filter && argdata.masks[k].min <= deg && deg <= argdata.masks[k].max)
+					custom = true;
+			}
+
+			if (hub->consume[i].distance == 0 || d > argdata.max_dist || d < argdata.min_dist || custom)
+			{
+				msg.points[idx].x = std::numeric_limits<float>::infinity();
+				msg.points[idx].y = std::numeric_limits<float>::infinity();
+				msg.points[idx].z = std::numeric_limits<float>::infinity();
+				msg.channels[0].values[idx] = std::numeric_limits<uint16_t>::infinity();
+				idx++;
+			}
+			else
+			{
+				float a = hub->consume[i].degree * M_PI / 180.0;
+				msg.points[idx].x = cos(a) * d;
+				msg.points[idx].y = sin(a) * d*-1;
+				msg.points[idx].z = 0;
+				msg.channels[0].values[idx] = hub->consume[i].confidence;
+				idx++;
+			}
+		}
 	}
 	else
 	{
-		return m_driver->sendUdpCmd2((char *)req.ip.c_str(), 12, cmd);
+		for (int i = 0; i <= hub->consume.size() - 1; i++)
+		{
+			double deg = m_driver->ROSAng(hub->consume[i].degree);
+			if (argdata.with_angle_filter)
+			{
+				if (deg < min_deg)
+					continue;
+				if (deg > max_deg)
+					continue;
+			}
+			double d = hub->consume[i].distance / 1000.0;
+			bool custom = false;
+			for (int k = 0; k < argdata.masks.size() && !custom; k++)
+			{
+				if (argdata.with_angle_filter && argdata.masks[k].min <= deg && deg <= argdata.masks[k].max)
+					custom = true;
+			}
+
+			if (hub->consume[i].distance == 0 || d > argdata.max_dist || d < argdata.min_dist || custom)
+			{
+				msg.points[idx].x = std::numeric_limits<float>::infinity();
+				msg.points[idx].y = std::numeric_limits<float>::infinity();
+				msg.points[idx].z = std::numeric_limits<float>::infinity();
+				msg.channels[0].values[idx] = std::numeric_limits<uint16_t>::infinity();
+				idx++;
+			}
+			else
+			{
+				float a = hub->consume[i].degree * M_PI / 180.0;
+				msg.points[idx].x = cos(a) * d;
+				msg.points[idx].y = sin(a) * d;
+				msg.points[idx].z = 0;
+				msg.channels[0].values[idx] = hub->consume[i].confidence;
+				idx++;
+			}
+		}
 	}
-	return false;
+
+	if(argdata.output_cloud2)
+	{
+		sensor_msgs::PointCloud2 laserCloudMsg;
+    	convertPointCloudToPointCloud2(msg, laserCloudMsg);
+		cloud_pub.publish(laserCloudMsg);
+	}
+	else
+	{
+		cloud_pub.publish(msg);
+	}
 }
 
-bool rpm_motor(bluesea2::DefenceZone::Request &req, bluesea2::DefenceZone::Response &res)
+// service call back function
+bool control_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &res)
 {
+	std::string cmd;
+	unsigned short proto = 0x0043;
 
-	char cmd[12] = {0};
-	sprintf(cmd, "LSRPM:%sH", req.ip.c_str());
-	ROS_INFO("RPM motor  cmd:%s\n:", cmd);
-	int index = req.index;
-	return m_driver->sendCmd(strlen(cmd), cmd, req.index);
+	if (req.func == "stop")
+	{
+		cmd = "LSTOPH";
+		proto = 0x0043;
+	}
+	else if (req.func == "start")
+	{
+		cmd = "LSTARH";
+		proto = 0x0043;
+	}
+	else if (req.func == "switchZone")
+	{
+		char tmp[12] = {0};
+		sprintf(tmp, "LSAZN:%xH", req.flag);
+		cmd = tmp;
+		proto = 0x0053;
+
+		if (req.flag < 0 || req.flag >= 16)
+		{
+			res.code = -1;
+			res.value = "defense zone id is [0,15]";
+			return true;
+		}
+	}
+	else if (req.func == "rpm")
+	{
+		char tmp[12] = {0};
+		sprintf(tmp, "LSRPM:%sH", req.params.c_str());
+		cmd = tmp;
+		proto = 0x0053;
+	}
+	else
+	{
+		ROS_ERROR("unknown action:%s", req.func.c_str());
+		res.code = -1;
+		res.value = "unknown cmd";
+		return true;
+	}
+	ROS_INFO("action:%s  cmd:%s  proto:%u", req.func.c_str(), cmd.c_str(), proto);
+	res.code = m_driver->sendCmd(req.topic, cmd, proto);
+	if (res.code <= 0)
+		res.value = "Command delivery failed, check the node terminal printout";
+	else if (res.code == 1)
+		res.value = "OK";
+
+	return true;
 }
 
 bool get_range_param(ros::NodeHandle nh, const char *name, Range &range)
@@ -322,7 +404,7 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 				return false;
 			}
 
-			priv_nh.param("topic", arg.laser_topics, std::string("scan"));
+			priv_nh.param("scan_topic", arg.scan_topics, std::string("scan"));
 			priv_nh.param("cloud_topic", arg.cloud_topics, std::string("cloud"));
 		}
 		else
@@ -339,9 +421,9 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 					ROS_ERROR("Profiles lidar num %d is not exist!", i);
 					break;
 				}
-				sprintf(s, "topic%d", i);
+				sprintf(s, "scan_topic%d", i);
 				sprintf(t, "scan%d", i);
-				priv_nh.param(s, arg.laser_topics, std::string(t));
+				priv_nh.param(s, arg.scan_topics, std::string(t));
 				sprintf(s, "cloud_topic%d", i);
 				sprintf(t, "cloud%d", i);
 				priv_nh.param(s, arg.cloud_topics, std::string(t));
@@ -361,6 +443,7 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 	// data output
 	priv_nh.param("output_scan", argdata.output_scan, true);	// true: enable output angle+distance mode, 0: disable
 	priv_nh.param("output_cloud", argdata.output_cloud, false); // false: enable output xyz format, 0 : disable
+	priv_nh.param("output_cloud2", argdata.output_cloud2, false); // false: enable output xyz format, 0 : disable
 	priv_nh.param("output_360", argdata.output_360, true);		// true: packet data of 360 degree (multiple RawData), publish once
 																// false: publish every RawData (36 degree)
 	//  angle filter
@@ -419,6 +502,9 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 	priv_nh.param("unit_is_mm", argdata.unit_is_mm, -1); // 0 : distance is CM, 1: MM
 	priv_nh.param("with_confidence", argdata.with_confidence, -1);
 	priv_nh.param("ats", argdata.ats, -1);
+
+
+	//DEBUG("%d %d",argdata.with_confidence,argdata.unit_is_mm);
 	/*****************************SET arg end************************************/
 
 	return true;
@@ -427,12 +513,11 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 int main(int argc, char **argv)
 {
 	ROS_INFO("ROS VERSION:%s\n", BLUESEA2_VERSION);
-	
+
 	ros::init(argc, argv, "bluesea2_laser_publisher");
 	ros::NodeHandle node_handle;
 	ros::NodeHandle priv_nh("~");
 
-	
 	// init launch arg
 	ArgData argdata;
 	ProfileInit(priv_nh, argdata);
@@ -440,7 +525,7 @@ int main(int argc, char **argv)
 	m_driver->getInitCmds(argdata);
 	m_driver->openLidarThread();
 	// create topic
-	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS];
+	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS], cloud2_pubs[MAX_LIDARS];
 	for (int i = 0; i < argdata.num; i++)
 	{
 		char s[32];
@@ -448,17 +533,31 @@ int main(int argc, char **argv)
 		{
 			cloud_pubs[i] = node_handle.advertise<sensor_msgs::PointCloud>(argdata.connectargs[i].cloud_topics, 50);
 		}
+		if (argdata.output_cloud2)
+		{
+			cloud2_pubs[i] = node_handle.advertise<sensor_msgs::PointCloud2>(argdata.connectargs[i].cloud_topics, 50);
+		}
 		if (argdata.output_scan)
 		{
-			laser_pubs[i] = node_handle.advertise<sensor_msgs::LaserScan>(argdata.connectargs[i].laser_topics, 50);
+			laser_pubs[i] = node_handle.advertise<sensor_msgs::LaserScan>(argdata.connectargs[i].scan_topics, 50);
 		}
 	}
+	ros::ServiceServer control_srv[MAX_LIDARS * 2];
 	// interacting with the client
-	ros::ServiceServer stop_srv = node_handle.advertiseService("stop_motor", stop_motor);
-	ros::ServiceServer start_srv = node_handle.advertiseService("start_motor", start_motor);
-	ros::ServiceServer switchZone_srv = node_handle.advertiseService("switchZone_motor", switchZone_motor);
-	ros::ServiceServer rpm_srv = node_handle.advertiseService("rpm_motor", rpm_motor);
-	// // get offsetangle
+	for (int i = 0; i < argdata.connectargs.size(); i++)
+	{
+		if (argdata.output_scan)
+		{
+			std::string serviceName = argdata.connectargs[i].scan_topics + "_motor";
+			control_srv[i] = node_handle.advertiseService(serviceName, control_motor);
+		}
+		else if (argdata.output_cloud)
+		{
+			std::string serviceName = argdata.connectargs[i].cloud_topics + "_motor";
+			control_srv[i] = node_handle.advertiseService(serviceName, control_motor);
+		}
+	}
+
 	while (ros::ok())
 	{
 		ros::spinOnce();
@@ -485,6 +584,7 @@ int main(int argc, char **argv)
 											argdata.min_dist, argdata.max_dist, argdata.inverted, argdata.reversed);
 					}
 					delete fans[0];
+					hub->consume.clear();
 					idle = false;
 				}
 			}
@@ -500,11 +600,15 @@ int main(int argc, char **argv)
 					{
 						PublishLaserScan(laser_pubs[i], hub, argdata, counterclockwise);
 					}
-
 					if (argdata.output_cloud)
 					{
-						PublishCloud(cloud_pubs[i], hub, argdata);
+						PublishCloud(cloud_pubs[i], hub, argdata, counterclockwise);
 					}
+					else if (argdata.output_cloud2)
+					{
+						PublishCloud(cloud2_pubs[i], hub, argdata, counterclockwise);
+					}
+					hub->consume.clear();
 				}
 			}
 		}

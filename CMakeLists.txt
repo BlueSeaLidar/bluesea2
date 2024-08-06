@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
    FILES
    Control.srv
-   DefenceZone.srv
  )
 
 generate_messages(
@@ -35,13 +34,16 @@ FILE(GLOB BLUESEA_SDK_SRC
 
 add_executable(${PROJECT_NAME}_node  ./src/node.cpp ${BLUESEA_SDK_SRC})
 add_executable(${PROJECT_NAME}_client ./src/client.cpp)
+add_executable(${PROJECT_NAME}_heart_check ./src/heart_check.cpp)
+
 add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg  bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_client ${PROJECT_NAME}_gencfg bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_heart_check ${PROJECT_NAME}_gencfg bluesea2_generate_messages_cpp   ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_client ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_heart_check ${catkin_LIBRARIES})
 
-
-install(TARGETS ${PROJECT_NAME}_node ${PROJECT_NAME}_client
+install(TARGETS ${PROJECT_NAME}_node ${PROJECT_NAME}_client ${PROJECT_NAME}_heart_check
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
