@@ -10,7 +10,7 @@ void *HeartThreadProc(void*p);
 
 bool heart_motor(bluesea2::Control::Request &req, bluesea2::Control::Response &res)
 {
-    ROS_INFO("HeartCheck change status:%ld\n:", req.flag);
+    ROS_INFO("HeartCheck change status:%d\n:", req.flag);
     if(req.flag!=g_isrun)
     {
         if(req.flag) 
