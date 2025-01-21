@@ -507,6 +507,15 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 	//DEBUG("%d %d",argdata.with_confidence,argdata.unit_is_mm);
 	/*****************************SET arg end************************************/
 
+	/****************************NTP  SET*****************************************/
+
+	priv_nh.param("ntp_ip", argdata.ntp_ip, std::string("192.168.158.50"));	   
+	priv_nh.param("ntp_port", argdata.ntp_port, -1); 
+	priv_nh.param("ntp_enable", argdata.ntp_enable, -1);
+
+
+
+
 	return true;
 }
 
