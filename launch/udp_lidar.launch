@@ -38,7 +38,7 @@
     #NTP#
     <param name="ntp_ip" value="192.168.0.111" />
     <param name="ntp_port" value="5678" />
-    <param name="ntp_enable" value="1"/>
+    <param name="ntp_enable" value="-1"/>
   </node>
  </group>
   <!-- <node name="bluesea2_heart_check" pkg="bluesea2" type="bluesea2_heart_check" output="screen">
