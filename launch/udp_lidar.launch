@@ -18,6 +18,8 @@
     <param name="with_angle_filter" value="false"/>
     <param name="min_angle" value="-1"/>
     <param name="max_angle" value="2"/> 
+    <param name="log_enable" value="false"/> 
+    <param name="log_path" value="/tmp/ros_log.txt"/> 
     <!-- <rosparam param="mask1" >[0,3.14]</rosparam> -->
     <!-- <rosparam param="mask2" >[-1,0]</rosparam> -->
     #CONNECT#

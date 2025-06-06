@@ -9,7 +9,6 @@
 #include <ros/console.h>
 #include <time.h>
 #include "../sdk/include/bluesea.h"
-
 BlueSeaLidarDriver *m_driver = NULL;
 void PublishLaserScanFan(ros::Publisher &laser_pub, RawData *fan, std::string &frame_id, double min_dist, double max_dist, uint8_t inverted, uint8_t reversed)
 {
@@ -513,7 +512,9 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 	priv_nh.param("ntp_port", argdata.ntp_port, -1); 
 	priv_nh.param("ntp_enable", argdata.ntp_enable, -1);
 
-
+	//log
+	priv_nh.param("log_enable", argdata.log_enable, false);
+	priv_nh.param("log_path", argdata.log_path, std::string("/tmp/ros_log"));
 
 
 	return true;
@@ -521,8 +522,6 @@ bool ProfileInit(ros::NodeHandle priv_nh, ArgData &argdata)
 
 int main(int argc, char **argv)
 {
-	ROS_INFO("ROS VERSION:%s\n", BLUESEA2_VERSION);
-
 	ros::init(argc, argv, "bluesea2_laser_publisher");
 	ros::NodeHandle node_handle;
 	ros::NodeHandle priv_nh("~");
@@ -530,9 +529,17 @@ int main(int argc, char **argv)
 	// init launch arg
 	ArgData argdata;
 	ProfileInit(priv_nh, argdata);
+	if(argdata.log_enable)
+	{
+		ROS_INFO("Specific information will be saved to the log file:%s\n", argdata.log_path.c_str());
+		redirect_stdout_to_log(argdata.log_path.c_str());
+	}
+
+	ROS_INFO("ROS VERSION:%s\n", BLUESEA2_VERSION);
 	m_driver = new BlueSeaLidarDriver();
 	m_driver->getInitCmds(argdata);
 	m_driver->openLidarThread();
+	
 	// create topic
 	ros::Publisher laser_pubs[MAX_LIDARS], cloud_pubs[MAX_LIDARS], cloud2_pubs[MAX_LIDARS];
 	for (int i = 0; i < argdata.num; i++)
